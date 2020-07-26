@@ -1,0 +1,62 @@
+﻿{
+  "configurations": [
+    {
+      "name": "x64-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "variables": [
+        {
+          "name": "Qt5_DIR",
+          "value": "C:/Qt/5.12.8/msvc2017_64",
+          "type": "PATH"
+        },
+        {
+          "name": "LIBASS_LIBRARY",
+          "value": "C:\\misc_lib\\libass-0.14.0\\libass\\.libs\\libass.a",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "LIBASS_INCLUDE_DIR",
+          "value": "C:/misc_lib/libass-0.14.0/include",
+          "type": "PATH"
+        },
+        {
+          "name": "Iconv_INCLUDE_DIR",
+          "value": "C:/msys64/mingw64/include",
+          "type": "PATH"
+        },
+        {
+          "name": "EX_LIBRARY",
+          "value": "C:\\Program Files\\mingw-w64\\x86_64-8.1.0-win32-seh-rt_v6-rev0\\mingw64\\x86_64-w64-mingw32\\lib\\libmingwex.a;C:\\Program Files\\mingw-w64\\x86_64-8.1.0-win32-seh-rt_v6-rev0\\mingw64\\x86_64-w64-mingw32\\lib\\libmingw32.a;C:\\Program Files\\mingw-w64\\x86_64-8.1.0-win32-seh-rt_v6-rev0\\mingw64\\x86_64-w64-mingw32\\lib\\libgcc_s.a",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "ICONV_LIBRARY",
+          "value": "C:/msys64/mingw64/lib/libiconv.a",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "ICONV_INCLUDE_DIR",
+          "value": "C:/msys64/mingw64/include",
+          "type": "PATH"
+        },
+        {
+          "name": "FREETYPE_LIBRARY",
+          "value": "C:/misc_lib/freetype2/win64/freetype.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "FREETYPE_INCLUDE_DIR",
+          "value": "C:/misc_lib/freetype2/include",
+          "type": "PATH"
+        }
+      ]
+    }
+  ]
+}
