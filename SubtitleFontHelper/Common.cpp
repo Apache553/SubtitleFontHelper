@@ -23,7 +23,7 @@ std::wstring GetDefaultConfigFilename()
 	}
 	std::wstring ret_str(ret);
 	CoTaskMemFree(ret);
-	ret_str += L"\\SubtitleFontHelp.xml";
+	ret_str += L"\\SubtitleFontHelper.xml";
 	HANDLE hf = CreateFileW(ret_str.c_str(), GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hf != INVALID_HANDLE_VALUE) {
 		WriteFile(hf, default_conf, default_conf_len, nullptr, NULL);

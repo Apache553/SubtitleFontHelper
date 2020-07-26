@@ -33,17 +33,18 @@ public:
 	/**
 		@brief Query system font by name
 		@param name - Font name
+		@param exact - true: match whole name, false: match first 31 characters(workaround for the length limit of LOGFONT)
 		@return bool - true: font in system, false: font not in system
 	*/
-	bool QuerySystemFont(const std::wstring& name);
+	bool QuerySystemFont(const std::wstring& name, bool exact = true);
 	/**
 		@brief Export system font by name
 		@param name - Font name
 		@param path - file to store font
 		@return true for success
 	*/
-	bool ExportSystemFont(const std::wstring& name, const std::wstring& path);
-	std::pair<std::unique_ptr<char[]>, size_t> ExportSystemFontToMemory(const std::wstring& name);
+	bool ExportSystemFont(const std::wstring& name, const std::wstring& path, bool exact = true);
+	std::pair<std::unique_ptr<char[]>, size_t> ExportSystemFontToMemory(const std::wstring& name, bool exact = true);
 	/**
 		@brief Free tempory memory
 	*/

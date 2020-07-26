@@ -31,6 +31,10 @@ if(CMAKE_BUILD_TYPE MATCHES "Release")
 set(QUAZIP_LIBS "${CMAKE_SOURCE_DIR}/quazip/quazip/release/quazip.lib" "${CMAKE_SOURCE_DIR}/zlib/build/Release/zlibstatic.lib")
 endif(CMAKE_BUILD_TYPE MATCHES "Release")
 
+if(CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
+set(QUAZIP_LIBS "${CMAKE_SOURCE_DIR}/quazip/quazip/release/quazip.lib" "${CMAKE_SOURCE_DIR}/zlib/build/Release/zlibstatic.lib")
+endif(CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
+
 message(${QUAZIP_LIBS})
 
 add_executable(SubtitleFontHelper WIN32

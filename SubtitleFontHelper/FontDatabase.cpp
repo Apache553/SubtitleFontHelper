@@ -104,9 +104,9 @@ public:
 	_impl_SystemFontManager();
 	~_impl_SystemFontManager();
 
-	bool QuerySystemFont(const std::wstring& name);
-	bool ExportSystemFont(const std::wstring& name, const std::wstring& path);
-	std::pair<std::unique_ptr<char[]>, size_t> ExportSystemFontToMemory(const std::wstring& name);
+	bool QuerySystemFont(const std::wstring& name, bool exact);
+	bool ExportSystemFont(const std::wstring& name, const std::wstring& path, bool exact);
+	std::pair<std::unique_ptr<char[]>, size_t> ExportSystemFontToMemory(const std::wstring& name, bool exact);
 	void ClearState();
 };
 
@@ -203,19 +203,19 @@ SystemFontManager::~SystemFontManager()
 	delete impl;
 }
 
-bool SystemFontManager::QuerySystemFont(const std::wstring& name)
+bool SystemFontManager::QuerySystemFont(const std::wstring& name, bool exact)
 {
-	return impl->QuerySystemFont(name);
+	return impl->QuerySystemFont(name, exact);
 }
 
-bool SystemFontManager::ExportSystemFont(const std::wstring& name, const std::wstring& path)
+bool SystemFontManager::ExportSystemFont(const std::wstring& name, const std::wstring& path, bool exact)
 {
-	return impl->ExportSystemFont(name, path);
+	return impl->ExportSystemFont(name, path, exact);
 }
 
-std::pair<std::unique_ptr<char[]>, size_t> SystemFontManager::ExportSystemFontToMemory(const std::wstring& name)
+std::pair<std::unique_ptr<char[]>, size_t> SystemFontManager::ExportSystemFontToMemory(const std::wstring& name, bool exact)
 {
-	return impl->ExportSystemFontToMemory(name);
+	return impl->ExportSystemFontToMemory(name, exact);
 }
 
 void SystemFontManager::ClearState()
@@ -234,7 +234,7 @@ _impl_SystemFontManager::~_impl_SystemFontManager()
 	if (hdc)DeleteDC(hdc);
 }
 
-bool _impl_SystemFontManager::QuerySystemFont(const std::wstring& name)
+bool _impl_SystemFontManager::QuerySystemFont(const std::wstring& name, bool exact)
 {
 	std::wstring undecor_name = GetUndecoratedFontName(name);
 	if (last_query == undecor_name) {
@@ -275,7 +275,7 @@ bool _impl_SystemFontManager::QuerySystemFont(const std::wstring& name)
 
 		auto font_name_list = GetFontItemFromMemory(font_buffer.data(), font_buffer.size());
 		for (const auto& item : font_name_list) {
-			if (item.name.substr(0, undecor_name.size()) == undecor_name) {
+			if (item.name.substr(0, exact ? size_t(-1) : undecor_name.size()) == undecor_name) {
 				last_query_success = true;
 				return true;
 			}
@@ -284,7 +284,7 @@ bool _impl_SystemFontManager::QuerySystemFont(const std::wstring& name)
 	}
 }
 
-bool _impl_SystemFontManager::ExportSystemFont(const std::wstring& name, const std::wstring& path)
+bool _impl_SystemFontManager::ExportSystemFont(const std::wstring& name, const std::wstring& path, bool exact)
 {
 	std::wstring undecor_name = GetUndecoratedFontName(name);
 	if (last_query == undecor_name) {
@@ -305,8 +305,8 @@ bool _impl_SystemFontManager::ExportSystemFont(const std::wstring& name, const s
 		}
 	}
 	else {
-		if (QuerySystemFont(name)) {
-			return ExportSystemFont(name, path);
+		if (QuerySystemFont(name, exact)) {
+			return ExportSystemFont(name, path, exact);
 		}
 		else {
 			return false;
@@ -314,7 +314,7 @@ bool _impl_SystemFontManager::ExportSystemFont(const std::wstring& name, const s
 	}
 }
 
-std::pair<std::unique_ptr<char[]>, size_t> _impl_SystemFontManager::ExportSystemFontToMemory(const std::wstring& name)
+std::pair<std::unique_ptr<char[]>, size_t> _impl_SystemFontManager::ExportSystemFontToMemory(const std::wstring& name, bool exact)
 {
 	std::unique_ptr<char[]> ret;
 	std::wstring undecor_name = GetUndecoratedFontName(name);
@@ -329,8 +329,8 @@ std::pair<std::unique_ptr<char[]>, size_t> _impl_SystemFontManager::ExportSystem
 		}
 	}
 	else {
-		if (QuerySystemFont(name)) {
-			return ExportSystemFontToMemory(name);
+		if (QuerySystemFont(name,exact)) {
+			return ExportSystemFontToMemory(name, exact);
 		}
 		else {
 			return std::make_pair(std::move(ret), 0);
@@ -550,10 +550,16 @@ bool WalkDirectoryAndBuildDatabase(const std::wstring& dir, const std::wstring& 
 	std::vector<FontItem> fonts;
 	if (dir.empty())return false;
 
+	DWORD buf_len = GetFullPathNameW(dir.c_str(), 0, nullptr, nullptr);
+	if (buf_len == 0)return false;
+	std::unique_ptr<wchar_t[]> tmp_dir(new wchar_t[buf_len]);
+	buf_len = GetFullPathNameW(dir.c_str(), buf_len, tmp_dir.get(), nullptr);
+	if (buf_len == 0)return false;
+
 	//FILE* fp = _wfopen(db_path.c_str(), L"wb");
 	//if (fp == nullptr)return false;
 
-	WalkDirectory(dir, flag, recursive, [&](const std::wstring& fn) {
+	WalkDirectory(tmp_dir.get(), flag, recursive, [&](const std::wstring& fn) {
 		bool match_ext = false;
 		for (const auto& ext_name : ext) {
 			if (fn.rfind(ext_name) == fn.size() - ext_name.size()) {

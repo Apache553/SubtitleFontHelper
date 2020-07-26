@@ -57,6 +57,34 @@
           "type": "PATH"
         }
       ]
+    },
+    {
+      "name": "x64-Release",
+      "generator": "Ninja",
+      "configurationType": "RelWithDebInfo",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "variables": [
+        {
+          "name": "Qt5_DIR",
+          "value": "C:/Qt/5.12.8/msvc2017_64",
+          "type": "PATH"
+        },
+        {
+          "name": "FREETYPE_INCLUDE_DIR",
+          "value": "C:/misc_lib/freetype2/include",
+          "type": "PATH"
+        },
+        {
+          "name": "FREETYPE_LIBRARY",
+          "value": "C:/misc_lib/freetype2/win64/freetype.lib",
+          "type": "FILEPATH"
+        }
+      ]
     }
   ]
 }

@@ -13,7 +13,7 @@
 struct FontPathRequest {
 	volatile uint32_t done;
 	volatile uint32_t length;
-	volatile wchar_t data[0];
+	volatile wchar_t data[1];
 };
 #pragma pack(pop)
 
@@ -101,10 +101,10 @@ void QueryDaemon::RunDaemon()
 		}
 		req->done = 0;
 
-		if (sys_fnt.QuerySystemFont(name)) {
+		if (sys_fnt.QuerySystemFont(name, false)) {
 			req->done |= SUCCESS_BIT;
 			dbgout << name << L" already in system\n";
-			cb(name, L"<InSystem>");
+			cb(name, L"<Installed In System>");
 		}
 		else {
 			try {
