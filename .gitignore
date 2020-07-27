@@ -31,9 +31,17 @@
 *.out
 *.app
 
-/.vs
-/SubtitleFontHelper/.vs
-/SubtitleFontHelper/out
-/SubtitleFontHelper/quazip/quazip/debug
-/SubtitleFontHelper/quazip/quazip/release
-/SubtitleFontHelper/zlib/build
+/.vs/
+/SubtitleFontHelper/.vs/
+/SubtitleFontHelper/out/
+/SubtitleFontHelper/quazip/quazip/debug/
+/SubtitleFontHelper/quazip/quazip/release/
+/SubtitleFontHelper/zlib/build/
+/GDIHookLib/.vs/
+/GDIHookLib/out/
+obj.X64/
+obj.X86/
+bin.X64/
+bin.X86/
+lib.X64/
+lib.X86/

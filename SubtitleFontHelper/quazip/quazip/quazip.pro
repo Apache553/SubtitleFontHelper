@@ -45,7 +45,7 @@ CONFIG(staticlib): DEFINES += QUAZIP_STATIC
 # Input
 include(quazip.pri)
 
-message($$PWD/../../zlib-1.2.11)
+message($$PWD/../../zlib)
 
 CONFIG(debug, debug|release) {
      mac: TARGET = $$join(TARGET,,,_debug) 
@@ -68,8 +68,8 @@ win32 {
     headers.path=$$PREFIX/include/quazip
     headers.files=$$HEADERS
     INSTALLS += headers target
-    LIBS += -L$$PWD/../../zlib-1.2.11/build/Release -lzlibstatic
-    INCLUDEPATH += $$PWD/../../zlib-1.2.11 $$PWD/../../zlib-1.2.11/build
+    LIBS += -L$$PWD/../../zlib/build/Release -lzlibstatic
+    INCLUDEPATH += $$PWD/../../zlib $$PWD/../../zlib/build
     CONFIG(staticlib){
         target.path=$$PREFIX/lib
         QMAKE_PKGCONFIG_LIBDIR = $$PREFIX/lib/

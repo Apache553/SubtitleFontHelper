@@ -108,6 +108,7 @@ public:
 	bool ExportSystemFont(const std::wstring& name, const std::wstring& path, bool exact);
 	std::pair<std::unique_ptr<char[]>, size_t> ExportSystemFontToMemory(const std::wstring& name, bool exact);
 	void ClearState();
+	bool QuerySystemFontNoExport(const std::wstring& name);
 };
 
 FontDatabase::FontDatabase()
@@ -221,6 +222,11 @@ std::pair<std::unique_ptr<char[]>, size_t> SystemFontManager::ExportSystemFontTo
 void SystemFontManager::ClearState()
 {
 	return impl->ClearState();
+}
+
+bool SystemFontManager::QuerySystemFontNoExport(const std::wstring& name)
+{
+	return impl->QuerySystemFontNoExport(name);
 }
 
 _impl_SystemFontManager::_impl_SystemFontManager() :last_hfont(NULL), last_query_success(false)
@@ -347,6 +353,23 @@ void _impl_SystemFontManager::ClearState()
 	last_query_success = false;
 	font_buffer.swap(std::vector<char>());
 	last_query.clear();
+}
+
+int CALLBACK CheckFontProc(CONST LOGFONTW*, CONST TEXTMETRICW*, DWORD, LPARAM ptr) {
+	bool* ret = (bool*)ptr;
+	*ret = true;
+	return 0;
+}
+
+bool _impl_SystemFontManager::QuerySystemFontNoExport(const std::wstring& name)
+{
+	bool found = false;
+	LOGFONTW lgf;
+	ZeroMemory(&lgf, sizeof(LOGFONTW));
+	lgf.lfCharSet = DEFAULT_CHARSET;
+	name.copy(lgf.lfFaceName, 31);
+	EnumFontFamiliesExW(hdc, &lgf, CheckFontProc, (LPARAM)&found, 0);
+	return found;
 }
 
 static std::vector<FontItem> GetFontItemFromFile(const std::wstring& filename) {
@@ -550,16 +573,12 @@ bool WalkDirectoryAndBuildDatabase(const std::wstring& dir, const std::wstring& 
 	std::vector<FontItem> fonts;
 	if (dir.empty())return false;
 
-	DWORD buf_len = GetFullPathNameW(dir.c_str(), 0, nullptr, nullptr);
-	if (buf_len == 0)return false;
-	std::unique_ptr<wchar_t[]> tmp_dir(new wchar_t[buf_len]);
-	buf_len = GetFullPathNameW(dir.c_str(), buf_len, tmp_dir.get(), nullptr);
-	if (buf_len == 0)return false;
+	std::wstring full_dir = GetFullPath(dir);
 
 	//FILE* fp = _wfopen(db_path.c_str(), L"wb");
 	//if (fp == nullptr)return false;
 
-	WalkDirectory(tmp_dir.get(), flag, recursive, [&](const std::wstring& fn) {
+	WalkDirectory(full_dir, flag, recursive, [&](const std::wstring& fn) {
 		bool match_ext = false;
 		for (const auto& ext_name : ext) {
 			if (fn.rfind(ext_name) == fn.size() - ext_name.size()) {

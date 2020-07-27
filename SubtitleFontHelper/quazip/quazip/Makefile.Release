@@ -16,7 +16,7 @@ CXX           = cl
 DEFINES       = -DUNICODE -D_UNICODE -DWIN32 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -DWIN64 -DQT_DISABLE_DEPRECATED_BEFORE=0x060000 -DQUAZIP_BUILD -DQT_NO_CAST_FROM_ASCII -DQT_NO_CAST_TO_ASCII -DQUAZIP_STATIC -DNOMINMAX -DQT_NO_DEBUG -DQT_CORE_LIB -DNDEBUG
 CFLAGS        = -nologo -Zc:wchar_t -FS -Zc:strictStrings -O2 -MD -W3 -w44456 -w44457 -w44458 $(DEFINES)
 CXXFLAGS      = -nologo -Zc:wchar_t -FS -Zc:rvalueCast -Zc:inline -Zc:strictStrings -Zc:throwingNew -Zc:referenceBinding -Zc:__cplusplus -O2 -MD -W3 -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 -wd4577 -wd4467 -EHsc $(DEFINES)
-INCPATH       = -I. -I. -I..\..\zlib-1.2.11 -I..\..\zlib-1.2.11\build -IC:\Qt\5.12.8\msvc2017_64\include -IC:\Qt\5.12.8\msvc2017_64\include\QtCore -Irelease -IC:\Qt\5.12.8\msvc2017_64\mkspecs\win32-msvc 
+INCPATH       = -I. -I. -I..\..\zlib -I..\..\zlib\build -IC:\Qt\5.12.8\msvc2017_64\include -IC:\Qt\5.12.8\msvc2017_64\include\QtCore -Irelease -IC:\Qt\5.12.8\msvc2017_64\mkspecs\win32-msvc 
 LIBAPP        = lib /NOLOGO
 LIBFLAGS      = 
 QMAKE         = C:\Qt\5.12.8\msvc2017_64\bin\qmake.exe
@@ -255,11 +255,11 @@ release\moc_quagzipfile.cpp: quagzipfile.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qcontainerfwd.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qobject_impl.h \
 		quazip_global.h \
-		..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h \
+		..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h \
 		release\moc_predefs.h \
 		C:\Qt\5.12.8\msvc2017_64\bin\moc.exe
-	C:\Qt\5.12.8\msvc2017_64\bin\moc.exe $(DEFINES) --compiler-flavor=msvc --include C:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip/release/moc_predefs.h -IC:/Qt/5.12.8/msvc2017_64/mkspecs/win32-msvc -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/zlib-1.2.11 -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/zlib-1.2.11/build -IC:/Qt/5.12.8/msvc2017_64/include -IC:/Qt/5.12.8/msvc2017_64/include/QtCore -I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.26.28801\ATLMFC\include" -I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.26.28801\include" -I"C:\Program Files (x86)\Windows Kits\NETFXSDK\4.8\include\um" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\ucrt" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\shared" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\um" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\winrt" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\cppwinrt" quagzipfile.h -o release\moc_quagzipfile.cpp
+	C:\Qt\5.12.8\msvc2017_64\bin\moc.exe $(DEFINES) --compiler-flavor=msvc --include C:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip/release/moc_predefs.h -IC:/Qt/5.12.8/msvc2017_64/mkspecs/win32-msvc -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/zlib -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/zlib/build -IC:/Qt/5.12.8/msvc2017_64/include -IC:/Qt/5.12.8/msvc2017_64/include/QtCore -I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.26.28801\ATLMFC\include" -I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.26.28801\include" -I"C:\Program Files (x86)\Windows Kits\NETFXSDK\4.8\include\um" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\ucrt" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\shared" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\um" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\winrt" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\cppwinrt" quagzipfile.h -o release\moc_quagzipfile.cpp
 
 release\moc_quaziodevice.cpp: quaziodevice.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\QIODevice \
@@ -314,11 +314,11 @@ release\moc_quaziodevice.cpp: quaziodevice.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qcontainerfwd.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qobject_impl.h \
 		quazip_global.h \
-		..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h \
+		..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h \
 		release\moc_predefs.h \
 		C:\Qt\5.12.8\msvc2017_64\bin\moc.exe
-	C:\Qt\5.12.8\msvc2017_64\bin\moc.exe $(DEFINES) --compiler-flavor=msvc --include C:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip/release/moc_predefs.h -IC:/Qt/5.12.8/msvc2017_64/mkspecs/win32-msvc -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/zlib-1.2.11 -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/zlib-1.2.11/build -IC:/Qt/5.12.8/msvc2017_64/include -IC:/Qt/5.12.8/msvc2017_64/include/QtCore -I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.26.28801\ATLMFC\include" -I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.26.28801\include" -I"C:\Program Files (x86)\Windows Kits\NETFXSDK\4.8\include\um" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\ucrt" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\shared" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\um" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\winrt" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\cppwinrt" quaziodevice.h -o release\moc_quaziodevice.cpp
+	C:\Qt\5.12.8\msvc2017_64\bin\moc.exe $(DEFINES) --compiler-flavor=msvc --include C:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip/release/moc_predefs.h -IC:/Qt/5.12.8/msvc2017_64/mkspecs/win32-msvc -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/zlib -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/zlib/build -IC:/Qt/5.12.8/msvc2017_64/include -IC:/Qt/5.12.8/msvc2017_64/include/QtCore -I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.26.28801\ATLMFC\include" -I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.26.28801\include" -I"C:\Program Files (x86)\Windows Kits\NETFXSDK\4.8\include\um" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\ucrt" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\shared" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\um" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\winrt" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\cppwinrt" quaziodevice.h -o release\moc_quaziodevice.cpp
 
 release\moc_quazipfile.cpp: quazipfile.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\QIODevice \
@@ -379,8 +379,8 @@ release\moc_quazipfile.cpp: quazipfile.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\QTextCodec \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qtextcodec.h \
 		zip.h \
-		..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h \
+		..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h \
 		ioapi.h \
 		unzip.h \
 		quazipfileinfo.h \
@@ -396,7 +396,7 @@ release\moc_quazipfile.cpp: quazipfile.h \
 		quazipnewinfo.h \
 		release\moc_predefs.h \
 		C:\Qt\5.12.8\msvc2017_64\bin\moc.exe
-	C:\Qt\5.12.8\msvc2017_64\bin\moc.exe $(DEFINES) --compiler-flavor=msvc --include C:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip/release/moc_predefs.h -IC:/Qt/5.12.8/msvc2017_64/mkspecs/win32-msvc -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/zlib-1.2.11 -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/zlib-1.2.11/build -IC:/Qt/5.12.8/msvc2017_64/include -IC:/Qt/5.12.8/msvc2017_64/include/QtCore -I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.26.28801\ATLMFC\include" -I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.26.28801\include" -I"C:\Program Files (x86)\Windows Kits\NETFXSDK\4.8\include\um" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\ucrt" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\shared" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\um" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\winrt" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\cppwinrt" quazipfile.h -o release\moc_quazipfile.cpp
+	C:\Qt\5.12.8\msvc2017_64\bin\moc.exe $(DEFINES) --compiler-flavor=msvc --include C:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip/release/moc_predefs.h -IC:/Qt/5.12.8/msvc2017_64/mkspecs/win32-msvc -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/quazip/quazip -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/zlib -IC:/Users/Apach/source/repos/SubtitleFontHelper/SubtitleFontHelper/zlib/build -IC:/Qt/5.12.8/msvc2017_64/include -IC:/Qt/5.12.8/msvc2017_64/include/QtCore -I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.26.28801\ATLMFC\include" -I"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.26.28801\include" -I"C:\Program Files (x86)\Windows Kits\NETFXSDK\4.8\include\um" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\ucrt" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\shared" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\um" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\winrt" -I"C:\Program Files (x86)\Windows Kits\10\include\10.0.18362.0\cppwinrt" quazipfile.h -o release\moc_quazipfile.cpp
 
 compiler_moc_objc_header_make_all:
 compiler_moc_objc_header_clean:
@@ -416,8 +416,8 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean
 
 ####### Compile
 
-release\qioapi.obj: qioapi.cpp ..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h \
+release\qioapi.obj: qioapi.cpp ..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h \
 		ioapi.h \
 		quazip_global.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qglobal.h \
@@ -522,8 +522,8 @@ release\JlCompress.obj: JlCompress.cpp JlCompress.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\QTextCodec \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qtextcodec.h \
 		zip.h \
-		..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h \
+		..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h \
 		ioapi.h \
 		unzip.h \
 		quazip_global.h \
@@ -584,8 +584,8 @@ release\quaadler32.obj: quaadler32.cpp quaadler32.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qarraydata.h \
 		quachecksum32.h \
 		quazip_global.h \
-		..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h
+		..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h
 
 release\quacrc32.obj: quacrc32.cpp quacrc32.h \
 		quachecksum32.h \
@@ -616,8 +616,8 @@ release\quacrc32.obj: quacrc32.cpp quacrc32.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qnamespace.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qarraydata.h \
 		quazip_global.h \
-		..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h
+		..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h
 
 release\quagzipfile.obj: quagzipfile.cpp C:\Qt\5.12.8\msvc2017_64\include\QtCore\QFile \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qfile.h \
@@ -675,8 +675,8 @@ release\quagzipfile.obj: quagzipfile.cpp C:\Qt\5.12.8\msvc2017_64\include\QtCore
 		quagzipfile.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\QIODevice \
 		quazip_global.h \
-		..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h
+		..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h
 
 release\quaziodevice.obj: quaziodevice.cpp quaziodevice.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\QIODevice \
@@ -731,8 +731,8 @@ release\quaziodevice.obj: quaziodevice.cpp quaziodevice.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qcontainerfwd.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qobject_impl.h \
 		quazip_global.h \
-		..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h \
+		..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\QFile \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qfile.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qfiledevice.h
@@ -799,8 +799,8 @@ release\quazip.obj: quazip.cpp C:\Qt\5.12.8\msvc2017_64\include\QtCore\QFile \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\QTextCodec \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qtextcodec.h \
 		zip.h \
-		..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h \
+		..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h \
 		ioapi.h \
 		unzip.h \
 		quazip_global.h \
@@ -857,8 +857,8 @@ release\quazipdir.obj: quazipdir.cpp quazipdir.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\QTextCodec \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qtextcodec.h \
 		zip.h \
-		..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h \
+		..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h \
 		ioapi.h \
 		unzip.h \
 		quazip_global.h \
@@ -950,8 +950,8 @@ release\quazipfile.obj: quazipfile.cpp quazipfile.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\QTextCodec \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qtextcodec.h \
 		zip.h \
-		..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h \
+		..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h \
 		ioapi.h \
 		unzip.h \
 		quazipfileinfo.h \
@@ -1096,8 +1096,8 @@ release\quazipnewinfo.obj: quazipnewinfo.cpp C:\Qt\5.12.8\msvc2017_64\include\Qt
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\QByteArray \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\QHash
 
-release\unzip.obj: unzip.c ..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h \
+release\unzip.obj: unzip.c ..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h \
 		unzip.h \
 		ioapi.h \
 		minizip_crypt.h \
@@ -1124,8 +1124,8 @@ release\unzip.obj: unzip.c ..\..\zlib-1.2.11\zlib.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qnumeric.h \
 		C:\Qt\5.12.8\msvc2017_64\include\QtCore\qversiontagging.h
 
-release\zip.obj: zip.c ..\..\zlib-1.2.11\zlib.h \
-		..\..\zlib-1.2.11\build\zconf.h \
+release\zip.obj: zip.c ..\..\zlib\zlib.h \
+		..\..\zlib\build\zconf.h \
 		zip.h \
 		ioapi.h \
 		minizip_crypt.h \

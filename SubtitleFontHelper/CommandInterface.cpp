@@ -10,6 +10,7 @@
 #include "Common.h"
 #include "FontDatabase.h"
 #include "Daemon.h"
+#include "ProcessMonitor.h"
 
 #define QUAZIP_STATIC
 #include <quazip.h>
@@ -120,6 +121,43 @@ std::pair<bool, std::string> CommandLineArgCollector::GetFirst(const std::string
 	}
 }
 
+void InvokeRundll32(const std::wstring& dll, const std::wstring& func, const std::wstring& arg) {
+	//std::wstring rundll32_path = GetSystem32Directory() + L"\\rundll32.exe";
+	std::wstring real_arg;
+	real_arg += L"rundll32.exe ";
+	real_arg += L'\"';
+	real_arg += dll;
+	real_arg += L"\",";
+	real_arg += func;
+	real_arg += L' ';
+	real_arg += arg;
+	// obtain tmp buffer to make CreateProcessW happy
+	std::unique_ptr<wchar_t[]> cmdl_buf(new wchar_t[real_arg.size() + 1]);
+	wcscpy(cmdl_buf.get(), real_arg.c_str());
+	wchar_t* env_blk = GetEnvironmentStringsW();
+	if (env_blk == nullptr)return;
+	std::wstring new_env;
+	new_env += L"NODETOUR=1";
+	new_env += L'\0';
+	wchar_t prev_ch = 0;
+	while (prev_ch != 0 || *env_blk != 0) {
+		new_env.push_back(*env_blk);
+		++env_blk;
+		prev_ch = new_env.back();
+	}
+	new_env.push_back(0);
+	STARTUPINFOW start_info;
+	PROCESS_INFORMATION process_info;
+	ZeroMemory(&start_info, sizeof(start_info));
+	start_info.cb = sizeof(start_info);
+	BOOL create_ret = CreateProcessW(nullptr, cmdl_buf.get(), NULL, NULL, FALSE, CREATE_UNICODE_ENVIRONMENT,
+		(void*)new_env.c_str(), NULL, &start_info, &process_info);
+	if (create_ret != FALSE) {
+		CloseHandle(process_info.hProcess);
+		CloseHandle(process_info.hThread);
+	}
+}
+
 int DoCmdASS(const CommandLineArgCollector& arg_collector)
 {
 	const auto& args = arg_collector.GetArgs();
@@ -138,11 +176,11 @@ int DoCmdASS(const CommandLineArgCollector& arg_collector)
 	}
 
 	// load config
+	std::wstring config_path;
+	auto arg_conf = arg_collector.GetFirst("-config");
+	if (arg_conf.first)config_path = UTF8ToStdWString(arg_conf.second);
+	else config_path = GetDefaultConfigFilename();
 	if (!arg_collector.IsExist("-nodep")) {
-		std::wstring config_path;
-		auto arg_conf = arg_collector.GetFirst("-config");
-		if (arg_conf.first)config_path = UTF8ToStdWString(arg_conf.second);
-		else config_path = GetDefaultConfigFilename();
 		conf = MyConfig::FromFile(config_path);
 	}
 
@@ -286,16 +324,17 @@ int DoCmdDaemon(const CommandLineArgCollector& arg_collector)
 	const auto& args = arg_collector.GetArgs();
 	MyConfig conf;
 	FontDatabase db;
+	ProcessMonitor monitor;
 
 	bool no_console = arg_collector.IsExist("-nocon");
 	_ConWarpper warpper(!no_console);
 
 	// load config
+	std::wstring config_path;
+	auto arg_conf = arg_collector.GetFirst("-config");
+	if (arg_conf.first)config_path = UTF8ToStdWString(arg_conf.second);
+	else config_path = GetDefaultConfigFilename();
 	if (!arg_collector.IsExist("-nodep")) {
-		std::wstring config_path;
-		auto arg_conf = arg_collector.GetFirst("-config");
-		if (arg_conf.first)config_path = UTF8ToStdWString(arg_conf.second);
-		else config_path = GetDefaultConfigFilename();
 		conf = MyConfig::FromFile(config_path);
 	}
 
@@ -309,21 +348,78 @@ int DoCmdDaemon(const CommandLineArgCollector& arg_collector)
 		db.LoadDatabase(UTF8ToStdWString(iter->second));
 	}
 
+	bool do_process_mon = arg_collector.IsExist("-procmon");
+
+	if (do_process_mon) {
+		// add monitored process names
+		for (const auto& pn : conf.monitored_process) {
+			monitor.AddProcessName(pn);
+		}
+		auto arg_proc_name = args.equal_range("-process");
+		for (auto iter = arg_proc_name.first; iter != arg_proc_name.second; ++iter) {
+			monitor.AddProcessName(UTF8ToStdWString(iter->second));
+		}
+		// setup inject function
+
+		std::wstring dll32, dll64;
+		std::wstring my_exe_path;
+		// get our exe path
+		size_t len = 1024;
+		std::unique_ptr<wchar_t[]> mod_fn(new wchar_t[len]);
+		while (true) {
+			len = GetModuleFileNameW(NULL, mod_fn.get(), len);
+			if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+				len *= 1.5;
+				if (len > 32767)break;
+				delete[] mod_fn.release();
+				mod_fn.reset(new wchar_t[len]);
+			}
+			else if (GetLastError() == ERROR_SUCCESS) {
+				my_exe_path = mod_fn.get();
+				break;
+			}
+			else {
+				break;
+			}
+		}
+		if (my_exe_path.empty())throw std::runtime_error("Unable to get current exe path");
+		// extract path
+		size_t spos = my_exe_path.rfind(L'\\');
+		if (spos == std::wstring::npos) throw std::runtime_error("invalid current exe path");
+		my_exe_path.resize(spos);
+		dll32 = my_exe_path + L"\\GDIHook32.dll";
+		dll64 = my_exe_path + L"\\GDIHook64.dll";
+
+		// do setup
+		monitor.SetCallback([dll32, dll64](const std::wstring& exe_path, uint32_t pid) {
+			HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+			if (hProcess == NULL) return;
+			BOOL is_32_process = false;
+			USHORT process_mach,host_mach;
+			if (IsWow64Process2(hProcess, &process_mach, &host_mach) == 0) {
+				CloseHandle(hProcess);
+				return;
+			}
+			CloseHandle(hProcess);
+			if (process_mach == IMAGE_FILE_MACHINE_I386)is_32_process = true;
+			InvokeRundll32(is_32_process ? dll32 : dll64, L"DoInject", std::to_wstring(pid));
+			});
+	}
 	std::mutex mut;
 	QueryDaemon daemon(db, mut);
 	if (!no_console) {
 		daemon.SetCallback([&](const std::wstring& qn, const std::wstring& path) {
 			static size_t seq = 0;
-			warpper.Write(L"[").Write(std::to_wstring(seq++)).Write(L"]\n");
-			warpper.Write(L"Query: ").Write(qn).Write(L'\n');
-			warpper.Write(L"Result: ");
-			if (path.empty())warpper.Write(L"not found in index");
-			else warpper.Write(path);
-			warpper.Write(L'\n');
+			warpper.Write(L"RemoteCall [ ").Write(std::to_wstring(seq++)).Write(L" ]:\n");
+			warpper.WriteLine(qn).WriteLine(path);
 			});
 	}
 	warpper.WriteLine(L"Daemon Start.");
+	if (do_process_mon) {
+		monitor.RunMonitor();
+	}
 	daemon.RunDaemon();
+	monitor.CancelMonitor();
 	return 0;
 }
 
@@ -334,11 +430,11 @@ int DoCmdIndex(const CommandLineArgCollector& arg_collector)
 	bool no_console = arg_collector.IsExist("-nocon");
 	_ConWarpper warpper(!no_console);
 	// load config
+	std::wstring config_path;
+	auto arg_conf = arg_collector.GetFirst("-config");
+	if (arg_conf.first)config_path = UTF8ToStdWString(arg_conf.second);
+	else config_path = GetDefaultConfigFilename();
 	if (!arg_collector.IsExist("-nodep")) {
-		std::wstring config_path;
-		auto arg_conf = arg_collector.GetFirst("-config");
-		if (arg_conf.first)config_path = UTF8ToStdWString(arg_conf.second);
-		else config_path = GetDefaultConfigFilename();
 		conf = MyConfig::FromFile(config_path);
 	}
 	const std::wstring dir = UTF8ToStdWString(arg_collector.GetFirst("-dir").second);
@@ -360,6 +456,17 @@ int DoCmdIndex(const CommandLineArgCollector& arg_collector)
 	if (!good) {
 		throw std::runtime_error("build index failed");
 	}
+	if (!arg_collector.IsExist("-nodep")) {
+		if (arg_collector.IsExist("-writeconf")) {
+			std::wstring full_output = GetFullPath(output);
+			if (full_output.empty()) {
+				warpper.WriteLine(L"Get full output path failed. Using given path...");
+				full_output = output;
+			}
+			conf.index_files.insert(full_output);
+			conf.ToFile(config_path);
+		}
+	}
 	return 0;
 }
 
@@ -368,15 +475,61 @@ int DoCmdConfig(const CommandLineArgCollector& arg_collector)
 	const auto& args = arg_collector.GetArgs();
 	MyConfig conf;
 	// load config
+	std::wstring config_path;
+	auto arg_conf = arg_collector.GetFirst("-config");
+	if (arg_conf.first)config_path = UTF8ToStdWString(arg_conf.second);
+	else config_path = GetDefaultConfigFilename();
 	if (!arg_collector.IsExist("-nodep")) {
-		std::wstring config_path;
-		auto arg_conf = arg_collector.GetFirst("-config");
-		if (arg_conf.first)config_path = UTF8ToStdWString(arg_conf.second);
-		else config_path = GetDefaultConfigFilename();
 		conf = MyConfig::FromFile(config_path);
+
 		if (arg_collector.IsExist("-edit")) {
 			HINSTANCE exec_ret = ShellExecuteW(NULL, L"edit", config_path.c_str(), NULL, NULL, SW_SHOW);
+			return 0;
 		}
+
+		if (arg_collector.IsExist("-add") && arg_collector.IsExist("-del")) {
+			throw std::runtime_error("-add and -del conflict");
+		}else if (arg_collector.IsExist("-add") || arg_collector.IsExist("-del")) {
+			if (!arg_collector.IsExist("-value"))throw std::runtime_error("you must specify a value");
+			std::wstring op_type, op_target, op_value;
+			op_value = UTF8ToStdWString(arg_collector.GetFirst("-value").second);
+			if (op_value.empty())throw std::runtime_error("invalid arguments");
+			auto lookup = arg_collector.GetFirst("-add");
+			if (lookup.first) {
+				op_type = L"add";
+				op_target = UTF8ToStdWString(lookup.second);
+			}
+			lookup = arg_collector.GetFirst("-del");
+			if (lookup.first) {
+				op_type = L"del";
+				op_target = UTF8ToStdWString(lookup.second);
+			}
+
+			if (op_type.empty() || op_target.empty())throw std::runtime_error("invalid arguments");
+
+			std::set<std::wstring>* edit_set = nullptr;
+
+			if (op_target == L"index") {
+				edit_set = &conf.index_files;
+			}
+			else if (op_target == L"process") {
+				edit_set = &conf.monitored_process;
+			}
+
+			assert(edit_set != nullptr);
+
+			if (op_type == L"add") {
+				edit_set->insert(op_value);
+			}
+			else if (op_type == L"del") {
+				auto iter = edit_set->find(op_value);
+				edit_set->erase(iter);
+			}
+
+			conf.ToFile(config_path);
+			return 0;
+		}
+
 	}
 	return 0;
 }

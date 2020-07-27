@@ -19,6 +19,7 @@ struct FontPathRequest {
 
 #define DONE_BIT (0x1)
 #define SUCCESS_BIT (0x2)
+#define NOTIFY_BIT (0x4)
 
 struct HandleWarpper {
 	HANDLE handle;
@@ -99,37 +100,45 @@ void QueryDaemon::RunDaemon()
 		for (size_t i = 0; i < req->length; ++i) {
 			name.push_back(req->data[i]);
 		}
-		req->done = 0;
 
-		if (sys_fnt.QuerySystemFont(name, false)) {
-			req->done |= SUCCESS_BIT;
-			dbgout << name << L" already in system\n";
-			cb(name, L"<Installed In System>");
+		if (req->done & NOTIFY_BIT) {
+			req->done = 0;
+			cb(L"Event: <Remote Process Hook>", L"ExePath: " + name);
+			SetEvent(h_event);
 		}
 		else {
-			try {
-				FontItem item;
-				{
-					std::lock_guard<std::mutex> guard(db_mutex);
-					item = ref_db.QueryFont(name);
-				}
-				req->length = item.path.size();
-				for (size_t i = 0; i < req->length; ++i) {
-					req->data[i] = item.path[i];
-				}
-				req->done |= SUCCESS_BIT;
-				dbgout << item.name << L": " << item.path << L'\n';
-				cb(name, item.path);
-			}
-			catch (std::out_of_range e) {
-				req->length = 0;
-				req->data[0] = 0;
-				dbgout << name << L" not found in index\n";
-				cb(name, std::wstring());
-			}
-		}
+			req->done = 0;
 
-		req->done |= DONE_BIT;
-		SetEvent(h_event);
+			if (sys_fnt.QuerySystemFontNoExport(name)) {
+				req->done |= SUCCESS_BIT;
+				dbgout << name << L" already in system\n";
+				cb(L"QueryFont: " + name, L"Result: <Installed In System>");
+			}
+			else {
+				try {
+					FontItem item;
+					{
+						std::lock_guard<std::mutex> guard(db_mutex);
+						item = ref_db.QueryFont(name);
+					}
+					req->length = item.path.size();
+					for (size_t i = 0; i < req->length; ++i) {
+						req->data[i] = item.path[i];
+					}
+					req->done |= SUCCESS_BIT;
+					dbgout << item.name << L": " << item.path << L'\n';
+					cb(L"QueryFont: " + name, L"Result: "+item.path);
+				}
+				catch (std::out_of_range e) {
+					req->length = 0;
+					req->data[0] = 0;
+					dbgout << name << L" not found in index\n";
+					cb(L"QueryFont: " + name, L"Result: Not found in index");
+				}
+			}
+
+			req->done |= DONE_BIT;
+			SetEvent(h_event);
+		}
 	}
 }

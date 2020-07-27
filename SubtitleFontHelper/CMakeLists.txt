@@ -6,6 +6,10 @@ project ("SubtitleFontHelper")
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/bin)
+
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
@@ -15,10 +19,11 @@ find_package(Qt5 COMPONENTS REQUIRED Core Gui Widgets)
 find_path(FREETYPE_INCLUDE_DIR freetype/freetype.h)
 find_library(FREETYPE_LIBRARY freetype.lib)
 
-set(project_sources "MainWindow.cpp" "EntryPoint.cpp" "FontDatabase.cpp" "ASSReader.cpp"  "CommandInterface.cpp" "Common.cpp" "ConfigFile.cpp" "Daemon.cpp")
-set(project_headers "MainWindow.h" "FontDatabase.h" "ASSReader.h"  "CommandInterface.h" "Common.h" "ConfigFile.h" "Daemon.h")
+set(project_sources "MainWindow.cpp" "EntryPoint.cpp" "FontDatabase.cpp" "ASSReader.cpp"  "CommandInterface.cpp" "Common.cpp" "ConfigFile.cpp" "Daemon.cpp" "ProcessMonitor.cpp")
+set(project_headers "MainWindow.h" "FontDatabase.h" "ASSReader.h"  "CommandInterface.h" "Common.h" "ConfigFile.h" "Daemon.h" "ProcessMonitor.h")
 set(project_resources "resources.qrc")
 set(project_ui "MainWindow.ui")
+set(WMI_LIBS "wbemuuid.lib")
 
 qt5_wrap_ui(ui_wrap ${project_ui})
 qt5_wrap_cpp(moc_sources ${project_headers})
@@ -34,8 +39,6 @@ endif(CMAKE_BUILD_TYPE MATCHES "Release")
 if(CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
 set(QUAZIP_LIBS "${CMAKE_SOURCE_DIR}/quazip/quazip/release/quazip.lib" "${CMAKE_SOURCE_DIR}/zlib/build/Release/zlibstatic.lib")
 endif(CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
-
-message(${QUAZIP_LIBS})
 
 add_executable(SubtitleFontHelper WIN32
 	${project_sources} 
@@ -54,9 +57,11 @@ target_include_directories(SubtitleFontHelper PRIVATE
 	Qt5::Gui
 	Qt5::Widgets 
 )
+
 target_link_libraries(SubtitleFontHelper PRIVATE 
 	${FREETYPE_LIBRARY}
 	${QUAZIP_LIBS}
+	${WMI_LIBS}
     Qt5::Core
     Qt5::Gui
     Qt5::Widgets

@@ -49,6 +49,12 @@ public:
 		@brief Free tempory memory
 	*/
 	void ClearState();
+	/**
+		@brief Do non export query
+		@param name - Font name
+		@return bool - true: font in system, false: font not in system
+	*/
+	bool QuerySystemFontNoExport(const std::wstring& name);
 };
 
 template<typename T>

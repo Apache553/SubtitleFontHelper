@@ -30,7 +30,7 @@ int WINAPI wWinMain(
 	_In_ int nShowCmd
 ) {
 	// init COM
-	if (CoInitialize(nullptr) != S_OK) {
+	if (CoInitializeEx(NULL,COINITBASE_MULTITHREADED) != S_OK) {
 		MessageBoxW(NULL, L"CoInitialize failed.", L"Error", MB_OK | MB_ICONERROR);
 		return -1;
 	}
@@ -87,15 +87,30 @@ Available Targets&Options:\n \
             set extension names for search (overrides defaults[ttf,ttc,otf], can use multiple times)\n \
         -nocon\n \
             do not show console window\n \
+        -writeconf\n \
+            add the generated index into config for auto loading\n \
     3. daemon\n \
         running as a daemon to provide font path query service\n \
         -index <filename>\n \
             specify extra index file used for font lookup(this option can be used multiple times)\n \
         -nocon\n \
             do not show console window\n \
+        -procmon\n \
+            monitor process creation event to do inject hook\n \
+        -process <executable name>\n \
+            specify process executable name to be monitored(this option can be used multiple times)\n \
     4. config\n \
         -edit\n \
             open current config file with system text editor, if '-nodep' is present, nothing will happen\n \
+        -del <entry_type>\n \
+            delete an entry, no effect if nonexist\n \
+        -add <entry_type>\n \
+            add a new entry, no effect if exist\n \
+            <entry_type> can be:\n \
+                index - index file\n \
+                process - process to be monitored\n \
+        -value <value>\n \
+            the value of the entry\n \
     5. help(or no target)\n \
         show this text\n \
 ";
@@ -134,6 +149,7 @@ int CmdMain(int argc, char** argv, int begin_index) {
 				{"-ext",true,true},
 				{"-nocon",false,false},
 				{"-config",true,false},
+				{"-writeconf",false,false},
 				{"-nodep",false,false}
 				});
 			try {
@@ -147,6 +163,8 @@ int CmdMain(int argc, char** argv, int begin_index) {
 		}else if (strcmp(argv[i], "daemon") == 0) {
 			CommandLineArgCollector collector({
 				{"-index",true,true},
+				{"-procmon",false,false},
+				{"-process",true,true},
 				{"-nocon",false,false},
 				{"-config",true,false},
 				{"-nodep",false,false}
@@ -163,6 +181,9 @@ int CmdMain(int argc, char** argv, int begin_index) {
 		else if (strcmp(argv[i], "config") == 0) {
 			CommandLineArgCollector collector({
 				{"-edit",false,false},
+				{"-add",true,false},
+				{"-del",true,false},
+				{"-value",true,false},
 				{"-config",true,false},
 				{"-nodep",false,false}
 				});
@@ -194,6 +215,7 @@ int GUIMain(int argc, char** argv) {
 		L"Sorry", MB_OK | MB_ICONERROR);
 	return 0;
 }
+
 int main(int argc, char** argv) {
 	//WalkDirectoryAndBuildDatabase(L"D:\\Test\\fonts\\", L"D:\\Test\\fonts\\index.xml");
 	for (int i = 0; i < argc; ++i) {

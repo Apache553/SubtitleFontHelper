@@ -2,11 +2,12 @@
 #pragma once
 
 #include <string>
-#include <vector>
+#include <set>
 
 struct MyConfig {
 public:
-	std::vector<std::wstring> index_files;
+	std::set<std::wstring> index_files;
+	std::set<std::wstring> monitored_process;
 
 	bool ToFile(const std::wstring& filename)const;
 

@@ -32,6 +32,27 @@ std::wstring GetDefaultConfigFilename()
 	return ret_str;
 }
 
+std::wstring GetSystem32Directory() {
+	REFKNOWNFOLDERID rfid = FOLDERID_System;
+	wchar_t* ret;
+	if (SHGetKnownFolderPath(rfid, 0, NULL, &ret) != S_OK) {
+		return std::wstring();
+	}
+	std::wstring ret_str(ret);
+	CoTaskMemFree(ret);
+	return ret_str;
+}
+
+std::wstring GetFullPath(const std::wstring& path)
+{
+	DWORD buf_len = GetFullPathNameW(path.c_str(), 0, nullptr, nullptr);
+	if (buf_len == 0)return std::wstring();
+	std::unique_ptr<wchar_t[]> tmp_dir(new wchar_t[buf_len]);
+	buf_len = GetFullPathNameW(path.c_str(), buf_len, tmp_dir.get(), nullptr);
+	if (buf_len == 0)return std::wstring();
+	return tmp_dir.get();
+}
+
 
 std::string StdWStringToUTF8(const std::wstring& str)
 {

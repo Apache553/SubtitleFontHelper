@@ -7,6 +7,10 @@
 
 std::wstring GetDefaultConfigFilename();
 
+std::wstring GetSystem32Directory();
+
+std::wstring GetFullPath(const std::wstring& path);
+
 std::string StdWStringToUTF8(const std::wstring& str);
 std::wstring UTF8ToStdWString(const std::string& str);
 
