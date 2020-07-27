@@ -14,8 +14,8 @@
  - 将能够找到的字体文件和无法找到的字体名的列表打包输出为zip
  - 从索引中查找字幕引用的字体，并加载到系统中（直到下一次重启之前有效）
 
-### 作为修改版xyVSFilter的外部程序
-为了方便使用，我修改了xyVSFilter( [代码](https://github.com/Apache553/xy-VSFilter) )，使其在调用CreateFontIndirectW之前向外部发送一个查询，如果查询成功就将得到的字体文件路径通过以FR_PRIVATE选项调用的AddFontResourceEx加载，实现自动查找自动加载字体，并在播放器进程结束时释放，不污染全局字体列表。
+### 动态监控进程加载并hook对应函数
+在向操作系统请求字体之前先查询这里的字体索引，如果系统中未安装但索引中有就自动加载，以此实现按需加载字体
 
 ## 使用
 
@@ -30,9 +30,11 @@
 <ConfigFile>
 <IndexFile path="索引文件路径1"/>
 <IndexFile path="索引文件路径2"/>
+<MonitorProcess name="可执行文件名"/>
 </ConfigFile>
 ```
 `IndexFile`项用于实现自动加载索引
+`MonitorProcess`项用于把给定程序加入到监控列表中
 
 ## PS
 我因为代码写得稀烂被打了.jpg
