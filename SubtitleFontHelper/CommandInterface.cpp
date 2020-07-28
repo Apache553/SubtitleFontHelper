@@ -24,6 +24,7 @@ struct _ConWarpper {
 			if (AttachConsole(ATTACH_PARENT_PROCESS) == FALSE)
 #endif
 				AllocConsole();
+			SetConsoleCtrlHandler(HandlerRoutine, TRUE);
 		}
 	}
 	~_ConWarpper() {
@@ -39,6 +40,11 @@ struct _ConWarpper {
 			}
 			FreeConsole();
 		}
+	}
+
+	static BOOL WINAPI HandlerRoutine(_In_ DWORD dwCtrlType) {
+		exit(0);
+		return TRUE;
 	}
 
 	_ConWarpper& Write(const std::wstring& str) {

@@ -411,6 +411,9 @@ static std::vector<FontItem> GetFontItemFromMemory(void* mem, size_t size, const
 				FT_SfntName sfnt_name;
 				FT_Get_Sfnt_Name(face, si, &sfnt_name);
 
+				// IGNORE NAMES NOT FOR WINDOWS
+				if (sfnt_name.platform_id != TT_PLATFORM_MICROSOFT)continue;
+
 				std::wstring widename = GetFontSFNTName(sfnt_name);
 				if (plat != sfnt_name.platform_id || enc != sfnt_name.encoding_id || lang != sfnt_name.language_id) {
 					if (!loc_name.empty()) {
@@ -578,16 +581,24 @@ bool WalkDirectoryAndBuildDatabase(const std::wstring& dir, const std::wstring& 
 	//FILE* fp = _wfopen(db_path.c_str(), L"wb");
 	//if (fp == nullptr)return false;
 
+	CaseInsensitiveEqual streq;
+
+	size_t file_count = 0;
+
 	WalkDirectory(full_dir, flag, recursive, [&](const std::wstring& fn) {
 		bool match_ext = false;
+		size_t dot_pos = fn.rfind(L'.');
+		if (dot_pos == std::wstring::npos)return false;
+		std::wstring fn_ext = fn.substr(dot_pos);
 		for (const auto& ext_name : ext) {
-			if (fn.rfind(ext_name) == fn.size() - ext_name.size()) {
+			if (streq(fn_ext, ext_name)) {
 				match_ext = true;
 				break;
 			}
 		}
 		if (match_ext == false)return false;
 		cb(fn);
+		++file_count;
 		auto font_info = GetFontItemFromFile(fn);
 		fonts.insert(fonts.end(), font_info.begin(), font_info.end());
 		return true;
@@ -608,6 +619,7 @@ bool WalkDirectoryAndBuildDatabase(const std::wstring& dir, const std::wstring& 
 	writer.writeStartElement("FontList");
 	writer.writeAttribute("directory", QString::fromStdWString(dir));
 	writer.writeAttribute("count", QString::number(entry_count));
+	writer.writeAttribute("filecount", QString::number(file_count));
 	for (const auto& item : fonts) {
 		writer.writeStartElement("Font");
 		writer.writeAttribute("name", QString::fromStdWString(item.name));

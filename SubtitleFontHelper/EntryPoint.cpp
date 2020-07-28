@@ -231,10 +231,7 @@ int GUIMain(int argc, char** argv) {
 	return 0;
 }
 
-#include "ProcessMonitor.h"
-
 int main(int argc, char** argv) {
-	//WalkDirectoryAndBuildDatabase(L"D:\\Test\\fonts\\", L"D:\\Test\\fonts\\index.xml");
 	for (int i = 0; i < argc; ++i) {
 		if (strcmp(argv[i], "-nogui") == 0) {
 			return CmdMain(argc, argv, i + 1);
