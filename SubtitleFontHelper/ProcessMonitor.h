@@ -4,6 +4,7 @@
 #include <string>
 #include <functional>
 #include <cstdint>
+#include <exception>
 
 typedef std::function<void(const std::wstring& exec_path, uint32_t process_id)> ProcessCreatedCallback;
 
@@ -23,4 +24,6 @@ public:
 
 	void RunMonitor();
 	void CancelMonitor();
+
+	std::exception_ptr GetLastException();
 };

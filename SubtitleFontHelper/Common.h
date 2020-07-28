@@ -4,6 +4,17 @@
 #include <string>
 #include <functional>
 #include <type_traits>
+#include <cwctype>
+#include <locale>
+#include <algorithm>
+
+struct CaseInsensitiveHasher {
+	size_t operator()(const std::wstring& str)const;
+};
+
+struct CaseInsensitiveEqual {
+	bool operator()(const std::wstring& str1, const std::wstring& str2)const;
+};
 
 std::wstring GetDefaultConfigFilename();
 

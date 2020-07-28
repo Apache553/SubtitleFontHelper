@@ -45,3 +45,4 @@ bin.X64/
 bin.X86/
 lib.X64/
 lib.X86/
+CMakeSettings.json

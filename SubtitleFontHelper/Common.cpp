@@ -135,7 +135,7 @@ bool WriteAllToFile(const std::wstring& path, const std::string& content)
 }
 
 bool ReadAllFromFile(const std::wstring& path, std::string& bytes) {
-	return GetFileMemoryBuffer(path, [&](void* mem,size_t len,const std::wstring& fn) {
+	return GetFileMemoryBuffer(path, [&](void* mem, size_t len, const std::wstring& fn) {
 		bytes.assign((char*)mem, len);
 		});
 }
@@ -234,4 +234,18 @@ _DebugOutput& _DebugOutput::operator <<(wchar_t ch) {
 	OutputDebugStringW(buffer);
 #endif
 	return *this;
+}
+
+size_t CaseInsensitiveHasher::operator()(const std::wstring& str)const {
+	std::wstring chk(str);
+	std::for_each(chk.begin(), chk.end(), std::towupper);
+	return std::hash<std::wstring>()(chk);
+}
+
+bool CaseInsensitiveEqual::operator()(const std::wstring& str1, const std::wstring& str2)const {
+	if (str1.size() != str2.size())return false;
+	for (size_t i = 0; i < str1.size(); ++i) {
+		if (std::towupper(str1[i]) != std::towupper(str2[i]))return false;
+	}
+	return true;
 }

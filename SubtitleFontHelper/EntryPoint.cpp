@@ -34,6 +34,21 @@ int WINAPI wWinMain(
 		MessageBoxW(NULL, L"CoInitialize failed.", L"Error", MB_OK | MB_ICONERROR);
 		return -1;
 	}
+	HRESULT hr = CoInitializeSecurity(
+		NULL,
+		-1,                          // COM negotiates service
+		NULL,                        // Authentication services
+		NULL,                        // Reserved
+		RPC_C_AUTHN_LEVEL_DEFAULT,   // Default authentication 
+		RPC_C_IMP_LEVEL_IMPERSONATE, // Default Impersonation  
+		NULL,                        // Authentication info
+		EOAC_NONE,                   // Additional capabilities 
+		NULL                         // Reserved
+	);
+	if (hr != S_OK) {
+		MessageBoxW(NULL, L"CoInitializeSecurity failed", L"Error", MB_OK | MB_ICONERROR);
+		return -1;
+	}
 	// prepare arguments
 	int argc = 0;
 	wchar_t** argv_w = CommandLineToArgvW(lpCmdLine, &argc);
@@ -215,6 +230,8 @@ int GUIMain(int argc, char** argv) {
 		L"Sorry", MB_OK | MB_ICONERROR);
 	return 0;
 }
+
+#include "ProcessMonitor.h"
 
 int main(int argc, char** argv) {
 	//WalkDirectoryAndBuildDatabase(L"D:\\Test\\fonts\\", L"D:\\Test\\fonts\\index.xml");
