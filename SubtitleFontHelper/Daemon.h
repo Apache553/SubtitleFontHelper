@@ -7,7 +7,7 @@
 #include <mutex>
 #include <functional>
 
-typedef std::function<void(const std::wstring&, const std::wstring&)> QueryCallback;
+typedef std::function<void(const std::wstring&, const std::wstring&, bool good)> QueryCallback;
 
 class QueryDaemon {
 private:

@@ -27,7 +27,7 @@ bool MyConfig::ToFile(const std::wstring& filename)const
 	// root element
 	writer.writeEndElement();
 	writer.writeEndDocument();
-	
+
 	return WriteAllToFile(filename, bytes.toStdString());
 }
 

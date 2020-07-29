@@ -62,7 +62,7 @@ struct PointerHasher {
 	typedef typename std::remove_pointer<T>::type _ValT;
 	typedef typename std::decay<_ValT>::type _HashFnT;
 	std::hash<_HashFnT> hash_func;
-	size_t operator()(const T& p) const{
+	size_t operator()(const T& p) const {
 		return hash_func(*p);
 	}
 };
@@ -109,6 +109,16 @@ public:
 		@return The font item. Will throw std::out_of_range if not exist
 	*/
 	FontItem QueryFont(const std::wstring& name);
+	/**
+		@brief Get count of font names
+		@return count
+	*/
+	size_t GetCount()const;
+	/**
+	@brief Get count of font files
+	@return count
+*/
+	size_t GetFileCount()const;
 };
 
 std::wstring GetUndecoratedFontName(const std::wstring& name);

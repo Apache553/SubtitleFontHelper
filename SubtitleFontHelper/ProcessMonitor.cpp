@@ -17,13 +17,17 @@
 #include <comdef.h>
 #include <Wbemidl.h>
 
+static std::wstring GetProcessPath(DWORD pid);
+
+typedef std::function<void(uint32_t process_id)> EventSinkProcessCreatedCallback;
+
 class EventSink : public IWbemObjectSink
 {
 private:
 	LONG m_lRef;
 	bool bDone;
 
-	ProcessCreatedCallback cb;
+	EventSinkProcessCreatedCallback cb;
 public:
 	EventSink() { m_lRef = 0; bDone = false; }
 	~EventSink() { bDone = true; }
@@ -45,7 +49,7 @@ public:
 		/* [in] */ IWbemClassObject __RPC_FAR* pObjParam
 	);
 
-	void SetCallback(ProcessCreatedCallback fn);
+	void SetCallback(EventSinkProcessCreatedCallback fn);
 };
 
 class _impl_ProcessMonitor {
@@ -53,15 +57,15 @@ private:
 	std::unordered_set<std::wstring, CaseInsensitiveHasher, CaseInsensitiveEqual> process_list;
 	std::mutex list_mutex;
 
-	std::queue<std::pair<std::wstring, uint32_t>> event_queue;
+	std::queue<uint32_t> event_queue;
 	std::mutex msg_queue_mutex;
 	std::condition_variable cond_var;
 
 	std::thread monitor_thread;
 	std::mutex run_mutex; // lock while r/w other members
-	std::atomic<bool> should_cancel;
+	std::atomic<bool> should_cancel = false;
 
-	std::atomic<bool> cleaned;
+	std::atomic<bool> cleaned = true;
 	std::exception_ptr last_exception = nullptr;
 
 	IWbemLocator* pLocator = nullptr;
@@ -72,18 +76,21 @@ private:
 	IWbemObjectSink* pStubSink = nullptr;
 
 	bool full_init = false;
-	bool running = false;
 	bool com_init = false;
+	std::atomic<bool> running = false;
+
+	float poll_inteval = 1.0f;
 
 	ProcessCreatedCallback cb;
 
-	void EventSinkCallback(const std::wstring& exec_path, uint32_t process_id);
+	void EventSinkCallback(uint32_t process_id);
 
 	void Init();
 	void CleanUp();
 
 	void Start();
 	void Stop();
+
 public:
 	_impl_ProcessMonitor();
 	~_impl_ProcessMonitor();
@@ -99,6 +106,12 @@ public:
 	std::exception_ptr GetLastException();
 
 	void BusyWaitUntilStatusClean();
+
+	bool IsRunning()const;
+
+	void SetPollInterval(float i);
+
+	static int AdjustPrivilege();
 };
 
 
@@ -141,22 +154,20 @@ HRESULT EventSink::Indicate(LONG lObjectCount, IWbemClassObject** apObjArray)
 			IWbemClassObject* pWbemClsObj = nullptr;
 			hres = pUnkObj->QueryInterface(IID_IWbemClassObject, (void**)&pWbemClsObj);
 			if (hres == S_OK) {
+				auto oses = g_logger.GetNewSession();
+				oses.Debug(L"New WMI __InstanceCreationEvent");
 				VARIANT exec_path;
 				VARIANT process_id;
 				exec_path.vt = VT_EMPTY;
 				process_id.vt = VT_EMPTY;
 				hres = pWbemClsObj->Get(L"ProcessId", 0, &process_id, nullptr, nullptr);
 				if (hres == WBEM_S_NO_ERROR && process_id.vt != VT_EMPTY) {
-					hres = pWbemClsObj->Get(L"ExecutablePath", 0, &exec_path, nullptr, nullptr);
-					if (hres == WBEM_S_NO_ERROR && exec_path.vt != VT_EMPTY) {
-						if (exec_path.vt != VT_NULL) {
-							// if exec_path == VT_NULL usually means we dont have enough permission, 
-							// so it is also impossible for us to inject our dll, skipping
-							cb(exec_path.bstrVal, process_id.uintVal);
-						}
-						VariantClear(&exec_path);
-					}
+					oses.SetLogLevel(LogLevel::Debug).PrintHeader() << L"  ProcessId is " << process_id.uintVal << L"\n";
+					cb(process_id.uintVal);
 					VariantClear(&process_id);
+				}
+				else {
+					oses.Error(L"  Unable to ProcessId of __InstanceCreationEvent.");
 				}
 
 				pWbemClsObj->Release();
@@ -189,18 +200,16 @@ HRESULT EventSink::SetStatus(
 	return WBEM_S_NO_ERROR;
 }
 
-void EventSink::SetCallback(ProcessCreatedCallback fn)
+void EventSink::SetCallback(EventSinkProcessCreatedCallback fn)
 {
 	cb = fn;
 }
 
-void _impl_ProcessMonitor::EventSinkCallback(const std::wstring& exec_path, uint32_t process_id)
+void _impl_ProcessMonitor::EventSinkCallback(uint32_t process_id)
 {
-	OutputDebugStringW(exec_path.c_str());
-	OutputDebugStringW(L" RAW\n");
 	{
 		std::lock_guard<std::mutex> lg(msg_queue_mutex);
-		event_queue.push(std::make_pair(exec_path, process_id));
+		event_queue.push(process_id);
 	}
 	cond_var.notify_one();
 }
@@ -208,13 +217,12 @@ void _impl_ProcessMonitor::EventSinkCallback(const std::wstring& exec_path, uint
 _impl_ProcessMonitor::_impl_ProcessMonitor()
 {
 	// delayed initialize for multithreading
-	should_cancel.store(false);
-	cleaned.store(true);
 }
 
 _impl_ProcessMonitor::~_impl_ProcessMonitor()
 {
 	CancelMonitor();
+	if (monitor_thread.joinable())monitor_thread.join();
 }
 
 void _impl_ProcessMonitor::Init()
@@ -271,8 +279,8 @@ void _impl_ProcessMonitor::Init()
 	// setup event sink
 	pEventSink = new EventSink;
 	pEventSink->AddRef();
-	pEventSink->SetCallback([this](const std::wstring& exec_path, uint64_t process_id) {
-		this->EventSinkCallback(exec_path, process_id);
+	pEventSink->SetCallback([this](uint64_t process_id) {
+		this->EventSinkCallback(process_id);
 		});
 
 	hr = pApart->CreateObjectStub(pEventSink, &pStubUnknown);
@@ -308,7 +316,7 @@ void _impl_ProcessMonitor::CleanUp()
 	}
 	running = false;
 	full_init = false;
-	cleaned.store(true);
+	cleaned = true;
 }
 
 void _impl_ProcessMonitor::Start()
@@ -316,11 +324,15 @@ void _impl_ProcessMonitor::Start()
 	std::lock_guard<std::mutex> lg(run_mutex);
 	if (!full_init)return;
 	if (running)return;
+	const char* wql_fmt = "SELECT * "
+		"FROM __InstanceCreationEvent WITHIN %.3f "
+		"WHERE TargetInstance ISA 'Win32_Process'";
+	size_t wql_size = size_t(std::snprintf(nullptr, 0, wql_fmt, poll_inteval)) + 1;
+	std::unique_ptr<char[]> wql_buffer(new char[wql_size]);
+	std::snprintf(wql_buffer.get(), wql_size, wql_fmt, poll_inteval);
 	HRESULT hr = pService->ExecNotificationQueryAsync(
 		_bstr_t("WQL"),
-		_bstr_t("SELECT * "
-			"FROM __InstanceCreationEvent WITHIN 1 "
-			"WHERE TargetInstance ISA 'Win32_Process'"),
+		_bstr_t(wql_buffer.get()),
 		WBEM_FLAG_SEND_STATUS,
 		NULL,
 		pStubSink);
@@ -335,6 +347,32 @@ void _impl_ProcessMonitor::Stop()
 	if (!running)return;
 	pService->CancelAsyncCall(pStubSink);
 	running = false;
+}
+
+int _impl_ProcessMonitor::AdjustPrivilege()
+{
+	int error_code = ERROR_SUCCESS;
+	HANDLE h_token = NULL;
+	if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &h_token)) {
+		LUID dbg_luid;
+		if (LookupPrivilegeValueW(nullptr, L"SeDebugPrivilege", &dbg_luid)) {
+			TOKEN_PRIVILEGES token_priv;
+			token_priv.PrivilegeCount = 1;
+			token_priv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+			token_priv.Privileges[0].Luid = dbg_luid;
+			if (AdjustTokenPrivileges(h_token, FALSE, &token_priv, sizeof(TOKEN_PRIVILEGES), nullptr, nullptr)) {
+				error_code = GetLastError();
+			}
+		}
+		else {
+			error_code = GetLastError();
+		}
+		CloseHandle(h_token);
+	}
+	else {
+		error_code = GetLastError();
+	}
+	return error_code;
 }
 
 void _impl_ProcessMonitor::RunMonitor()
@@ -354,16 +392,25 @@ void _impl_ProcessMonitor::RunMonitor()
 				cond_var.wait(ul, [&]() {return should_cancel.load() || !event_queue.empty(); });
 				if (!event_queue.empty()) {
 					// process event, one per loop
-					auto e = event_queue.front();
+					auto pid = event_queue.front();
 					event_queue.pop();
+					ul.unlock();
+					std::wstring exe_path = GetProcessPath(pid);
+					if (exe_path.empty()) {
+						g_logger.GetNewSession().Debug(L"Unable to get ExecutablePath for ", pid);
+						continue;
+					}
+					else {
+						g_logger.GetNewSession().Debug(L"PID, ExecutablePath = ", pid, L", ", exe_path);
+					}
 					bool process_in_list = false;
-					size_t fpos = e.first.rfind(L'\\');
-					if (fpos != std::wstring::npos && e.first.back() != L'\\') {
+					size_t fpos = exe_path.rfind(L'\\');
+					if (fpos != std::wstring::npos && exe_path.back() != L'\\') {
 						std::lock_guard<std::mutex> lg(list_mutex);
-						process_in_list = process_list.find(e.first.substr(fpos + 1)) != process_list.end();
+						process_in_list = process_list.find(exe_path.substr(fpos + 1)) != process_list.end();
 					}
 					if (process_in_list) {
-						cb(e.first, e.second);
+						cb(exe_path, pid);
 					}
 				}
 			}
@@ -390,6 +437,9 @@ void _impl_ProcessMonitor::CancelMonitor()
 
 void _impl_ProcessMonitor::AddProcessName(const std::wstring& process)
 {
+	if (CaseInsensitiveEqual()(process, L"rundll32.exe")) {
+		g_logger.GetNewSession().Error(L"It is impossible to monitor rundll32.exe");
+	}
 	{
 		std::lock_guard<std::mutex> lg(list_mutex);
 		process_list.insert(process);
@@ -424,6 +474,17 @@ void _impl_ProcessMonitor::BusyWaitUntilStatusClean()
 	while (cleaned.load() == false) {
 		std::this_thread::yield();
 	}
+}
+
+bool _impl_ProcessMonitor::IsRunning() const
+{
+	return running;
+}
+
+void _impl_ProcessMonitor::SetPollInterval(float i)
+{
+	std::lock_guard<std::mutex> lg(run_mutex);
+	poll_inteval = i;
 }
 
 ProcessMonitor::ProcessMonitor()
@@ -461,7 +522,52 @@ void ProcessMonitor::CancelMonitor()
 	impl->CancelMonitor();
 }
 
+bool ProcessMonitor::IsRunning()const
+{
+	return impl->IsRunning();
+}
+
 std::exception_ptr ProcessMonitor::GetLastException()
 {
 	return impl->GetLastException();
+}
+
+void ProcessMonitor::SetPollInterval(float interval)
+{
+	impl->SetPollInterval(interval);
+}
+
+int ProcessMonitor::AdjustPrivilege()
+{
+	return _impl_ProcessMonitor::AdjustPrivilege();
+}
+
+static std::wstring GetProcessPath(DWORD pid)
+{
+	std::wstring ret;
+	HANDLE h_process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+	if (h_process == NULL)return std::wstring();
+	size_t len = 1024;
+	std::unique_ptr<wchar_t[]> mod_fn(new wchar_t[len]);
+	while (true) {
+		DWORD tmp = len;
+		SetLastError(ERROR_SUCCESS);
+		QueryFullProcessImageNameW(h_process, 0, mod_fn.get(), &tmp);
+		//len = GetModuleFileNameExW(h_process, NULL, mod_fn.get(), len);
+		if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+			len *= 1.5;
+			if (len > 32767)break;
+			delete[] mod_fn.release();
+			mod_fn.reset(new wchar_t[len]);
+		}
+		else if (GetLastError() == ERROR_SUCCESS) {
+			ret = mod_fn.get();
+			break;
+		}
+		else {
+			break;
+		}
+	}
+	CloseHandle(h_process);
+	return ret;
 }

@@ -62,7 +62,7 @@ public:
 
 	FixedByteBuffer(std::function<size_t(char*, size_t)> underflow_function) {
 		underflow_func = underflow_function;
-		buffer_size = underflow_func(buffer,size);
+		buffer_size = underflow_func(buffer, size);
 		buffer_pos = 0;
 	}
 
@@ -123,16 +123,15 @@ FontDatabase::~FontDatabase()
 bool FontDatabase::LoadDatabase(const std::wstring& path)
 {
 	bool success = false;
-	dbgout << L"Loading index: " << path << L'\n';
 	GetFileMemoryBuffer(path, [&](void* mem, size_t len, const std::wstring& fn) {
 		QByteArray data = QByteArray::fromRawData((char*)mem, len);
 		QXmlStreamReader reader(data);
 		while (!reader.atEnd()) {
 			QXmlStreamReader::TokenType token = reader.readNext();
 			if (reader.hasError()) {
-				dbgout << L"XML Parse Error" <<
-					L'(' << reader.lineNumber() << L',' << reader.columnNumber() << L"): " << 
-					reader.errorString().toStdWString() << L'\n';
+				g_logger.GetNewSession().Error(L"XML Parse Error",
+					L'(', reader.lineNumber(), L',', reader.columnNumber(), L"): ",
+					reader.errorString().toStdWString());
 				success = false;
 				return;
 			}
@@ -159,8 +158,6 @@ bool FontDatabase::LoadDatabase(const std::wstring& path)
 		}
 		success = true;
 		});
-	if (success)dbgout << L"Success.\n";
-	else dbgout << L"Failed.\n";
 	return success;
 }
 
@@ -192,6 +189,16 @@ FontItem FontDatabase::QueryFont(const std::wstring& name)
 	else {
 		return FontItem{ fntn_iter->first,*fntn_iter->second };
 	}
+}
+
+size_t FontDatabase::GetCount() const
+{
+	return fontname_map.size();
+}
+
+size_t FontDatabase::GetFileCount() const
+{
+	return fontpath_set.size();
 }
 
 SystemFontManager::SystemFontManager()
@@ -335,7 +342,7 @@ std::pair<std::unique_ptr<char[]>, size_t> _impl_SystemFontManager::ExportSystem
 		}
 	}
 	else {
-		if (QuerySystemFont(name,exact)) {
+		if (QuerySystemFont(name, exact)) {
 			return ExportSystemFontToMemory(name, exact);
 		}
 		else {
@@ -374,7 +381,7 @@ bool _impl_SystemFontManager::QuerySystemFontNoExport(const std::wstring& name)
 
 static std::vector<FontItem> GetFontItemFromFile(const std::wstring& filename) {
 	std::vector<FontItem> ret;
-	GetFileMemoryBuffer(filename, [&](void* mem,size_t len,const std::wstring& fn) {
+	GetFileMemoryBuffer(filename, [&](void* mem, size_t len, const std::wstring& fn) {
 		ret = GetFontItemFromMemory(mem, len, fn);
 		});
 	return ret;
@@ -484,7 +491,7 @@ static std::wstring MultiByteToStdWString(UINT codepage, const char* ptr, size_t
 		}
 		return MultiByteToStdWString(codepage, tmp.get(), new_len);
 	}
-	else if(*ptr==(char)0xFF){
+	else if (*ptr == (char)0xFF) {
 		// no known charset(gb*,sjis,big5,wansung,johab) use 0xff in first byte
 		try {
 			return UTF16BEToStdWString(ptr, len);
@@ -570,7 +577,7 @@ std::wstring GetUndecoratedFontName(const std::wstring& name)
 }
 
 bool WalkDirectoryAndBuildDatabase(const std::wstring& dir, const std::wstring& db_path, VisitCallback cb,
-	bool recursive,const std::vector<std::wstring>& ext) {
+	bool recursive, const std::vector<std::wstring>& ext) {
 
 	bool flag = true;
 	std::vector<FontItem> fonts;
@@ -611,7 +618,7 @@ bool WalkDirectoryAndBuildDatabase(const std::wstring& dir, const std::wstring& 
 		}), fonts.end());
 
 	uint32_t entry_count = fonts.size();
-	
+
 	QByteArray bytes;
 	QXmlStreamWriter writer(&bytes);
 	writer.setCodec("UTF-8");

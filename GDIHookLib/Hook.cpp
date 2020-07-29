@@ -110,7 +110,7 @@ CLEANUP:
 	return ret;
 }
 
-void InjectNotification() {
+void InjectNotification(bool status) {
 	std::wstring my_exe = GetHModulePath(NULL);
 	HANDLE h_mutex = NULL;
 	HANDLE h_mapping = NULL;
@@ -143,7 +143,9 @@ void InjectNotification() {
 	for (size_t i = 0; i < my_exe.size(); ++i) {
 		req->data[i] = my_exe[i];
 	}
-	req->done = NOTIFY_BIT;
+	req->done = 0;
+	req->done |= NOTIFY_BIT;
+	if (status)req->done |= SUCCESS_BIT;
 
 	SetEvent(h_event);
 	event_result = WaitForSingleObject(h_event, TIMEOUT_MSEC);
@@ -189,8 +191,8 @@ extern "C" {
 		HFONT ret = True_CreateFontIndirectA(lplf);
 		return ret;
 	}
-	HFONT WINAPI HookedCreateFontA(int cHeight, int cWidth, int cEscapement, int cOrientation, 
-		int cWeight, DWORD bItalic, DWORD bUnderline, DWORD bStrikeOut, DWORD iCharSet, 
+	HFONT WINAPI HookedCreateFontA(int cHeight, int cWidth, int cEscapement, int cOrientation,
+		int cWeight, DWORD bItalic, DWORD bUnderline, DWORD bStrikeOut, DWORD iCharSet,
 		DWORD iOutPrecision, DWORD iClipPrecision, DWORD iQuality, DWORD iPitchAndFamily, LPCSTR pszFaceName)
 	{
 		QueryAndLoadFont(pszFaceName);

@@ -34,8 +34,7 @@ BOOL WINAPI DllMain(
 	case DLL_PROCESS_ATTACH:
 		// Initialize once for each new process.
 		// Return FALSE to fail DLL load.
-		GetEnvironmentVariableW(L"NODETOUR", nullptr, 0);
-		if (GetLastError() == ERROR_SUCCESS)should_detour = false;
+		should_detour = getenv("NODETOUR") == nullptr;
 		if (GetHModulePath(NULL).find(L"rundll32.exe") != std::wstring::npos)should_detour = false;
 		if (should_detour) {
 			//MessageBoxW(nullptr, L"Injected", L"Info", MB_OK);
@@ -48,8 +47,10 @@ BOOL WINAPI DllMain(
 			DetourAttach(&(PVOID&)True_CreateFontIndirectExW, HookedCreateFontIndirectExW);
 			DetourAttach(&(PVOID&)True_CreateFontIndirectExA, HookedCreateFontIndirectExA);
 			detour_error = DetourTransactionCommit();
-			if (detour_error != NO_ERROR)return FALSE;
-			InjectNotification();
+			InjectNotification(detour_error == NOERROR);
+			if (detour_error != NO_ERROR) {
+				return FALSE;
+			}
 		}
 		break;
 
@@ -80,12 +81,38 @@ BOOL WINAPI DllMain(
 }
 
 std::wstring GetDLLSelfPath() {
-	HMODULE hModule=NULL;
+	HMODULE hModule = NULL;
 	if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
 		(wchar_t*)DllMain, &hModule) == 0) {
 		return std::wstring();
 	}
 	return GetHModulePath(hModule);
+}
+
+int AdjustPrivilege()
+{
+	int error_code = ERROR_SUCCESS;
+	HANDLE h_token = NULL;
+	if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &h_token)) {
+		LUID dbg_luid;
+		if (LookupPrivilegeValueW(nullptr, L"SeDebugPrivilege", &dbg_luid)) {
+			TOKEN_PRIVILEGES token_priv;
+			token_priv.PrivilegeCount = 1;
+			token_priv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+			token_priv.Privileges[0].Luid = dbg_luid;
+			if (AdjustTokenPrivileges(h_token, FALSE, &token_priv, sizeof(TOKEN_PRIVILEGES), nullptr, nullptr)) {
+				error_code = GetLastError();
+			}
+		}
+		else {
+			error_code = GetLastError();
+		}
+		CloseHandle(h_token);
+	}
+	else {
+		error_code = GetLastError();
+	}
+	return error_code;
 }
 
 extern "C" void CALLBACK DoInject(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, int nCmdShow) {
@@ -98,10 +125,13 @@ extern "C" void CALLBACK DoInject(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine,
 		return;
 	}
 
+	// try to get SeDebugPrivilege
+	AdjustPrivilege();
+
 	HANDLE hProcess = NULL;
 	HANDLE hThread = NULL;
 	HMODULE hMod = NULL;
-	LPVOID pRemoteBuf = NULL;  
+	LPVOID pRemoteBuf = NULL;
 	auto dll_path = GetDLLSelfPath();
 
 	LPTHREAD_START_ROUTINE pThreadProc;
@@ -119,7 +149,7 @@ extern "C" void CALLBACK DoInject(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine,
 	WriteProcessMemory(hProcess, pRemoteBuf, (LPVOID)dll_path.c_str(), buf_size, NULL);
 
 	hMod = GetModuleHandleW(L"kernel32.dll");
-	pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "LoadLibraryW");  
+	pThreadProc = (LPTHREAD_START_ROUTINE)GetProcAddress(hMod, "LoadLibraryW");
 
 	hThread = CreateRemoteThread(hProcess, NULL, 0, pThreadProc, pRemoteBuf, 0, NULL);
 

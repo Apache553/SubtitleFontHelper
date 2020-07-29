@@ -23,7 +23,7 @@ struct FontPathRequest {
 
 struct HandleWarpper {
 	HANDLE handle;
-	HandleWarpper():handle(NULL){}
+	HandleWarpper() :handle(NULL) {}
 	~HandleWarpper() { if (handle)CloseHandle(handle); }
 	operator HANDLE() {
 		return handle;
@@ -55,7 +55,7 @@ struct FileMapWarpper {
 
 QueryDaemon::QueryDaemon(FontDatabase& db, std::mutex& mut) :ref_db(db), db_mutex(mut)
 {
-	cb = [](const std::wstring&, const std::wstring&) {};
+	cb = [](const std::wstring&, const std::wstring&, bool) {};
 }
 
 void QueryDaemon::SetCallback(QueryCallback cb)
@@ -67,7 +67,7 @@ void QueryDaemon::RunDaemon()
 {
 	HandleWarpper h_mutex, h_event, h_mapping;
 	FileMapWarpper memmap;
-	
+
 	FontPathRequest* req = nullptr;
 
 	SystemFontManager sys_fnt;
@@ -75,7 +75,7 @@ void QueryDaemon::RunDaemon()
 	DWORD wait_result;
 
 	constexpr size_t buffer_size = 4096; // 4 KiB
-	
+
 	h_mutex = CreateMutexW(NULL, FALSE, L"FontPathQueryMutex");
 	if (h_mutex == nullptr || GetLastError() == ERROR_ALREADY_EXISTS)throw std::runtime_error("Unable to create mutex");
 	h_event = CreateEventW(NULL, FALSE, FALSE, L"FontPathQueryEvent");
@@ -102,17 +102,21 @@ void QueryDaemon::RunDaemon()
 		}
 
 		if (req->done & NOTIFY_BIT) {
-			req->done = 0;
-			cb(L"Event: <Remote Process Hook>", L"ExePath: " + name);
+			uint32_t done_bit = req->done;
 			SetEvent(h_event);
+			if (done_bit & SUCCESS_BIT) {
+				cb(L"Event: <Remote Process Hook: Success>", L"ExePath: " + name, true);
+			}
+			else {
+				cb(L"Event: <Remote Process Hook: Failure>", L"ExePath: " + name, false);
+			}
 		}
 		else {
 			req->done = 0;
 
 			if (sys_fnt.QuerySystemFontNoExport(name)) {
 				req->done |= SUCCESS_BIT;
-				dbgout << name << L" already in system\n";
-				cb(L"QueryFont: " + name, L"Result: <Installed In System>");
+				cb(L"QueryFont: " + name, L"Result: <Installed In System>", true);
 			}
 			else {
 				try {
@@ -126,14 +130,12 @@ void QueryDaemon::RunDaemon()
 						req->data[i] = item.path[i];
 					}
 					req->done |= SUCCESS_BIT;
-					dbgout << item.name << L": " << item.path << L'\n';
-					cb(L"QueryFont: " + name, L"Result: "+item.path);
+					cb(L"QueryFont: " + name, L"Result: " + item.path, true);
 				}
 				catch (std::out_of_range e) {
 					req->length = 0;
 					req->data[0] = 0;
-					dbgout << name << L" not found in index\n";
-					cb(L"QueryFont: " + name, L"Result: Not found in index");
+					cb(L"QueryFont: " + name, L"Result: <Not Found In Index>", false);
 				}
 			}
 

@@ -12,7 +12,7 @@
 const static char default_conf[] = u8R"_(<?xml version="1.0" encoding="UTF-8"?><ConfigFile></ConfigFile>)_" u8"\n";
 constexpr size_t default_conf_len = sizeof(default_conf) - 1;
 
-_DebugOutput dbgout;
+MyLogger g_logger;
 
 std::wstring GetDefaultConfigFilename()
 {
@@ -219,21 +219,6 @@ std::wstring DetectFontExtensionName(const char* mem, size_t len)
 	if (memcmp(mem, OpenType_SFNTVer, 4) == 0)return std::wstring(L".otf");
 	if (memcmp(mem, TTC_Tag, 4) == 0)return std::wstring(L".ttc");
 	return std::wstring(L".unknown");
-}
-
-_DebugOutput& _DebugOutput::operator <<(const std::wstring& str) {
-#ifdef _DEBUG
-	OutputDebugStringW(str.c_str());
-#endif
-	return *this;
-}
-
-_DebugOutput& _DebugOutput::operator <<(wchar_t ch) {
-	wchar_t buffer[2] = { ch,0 };
-#ifdef _DEBUG
-	OutputDebugStringW(buffer);
-#endif
-	return *this;
 }
 
 size_t CaseInsensitiveHasher::operator()(const std::wstring& str)const {

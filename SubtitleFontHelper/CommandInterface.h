@@ -18,7 +18,7 @@ private:
 	std::multimap<std::string, std::string> args;
 public:
 	/**
-		@brief Initialize 
+		@brief Initialize
 		@param def - arg def
 	*/
 	CommandLineArgCollector(const std::vector<CommandArgDef>& def);
@@ -36,7 +36,7 @@ public:
 		@param argv - array of arg
 		@param begin_idx - the index to start parse
 	*/
-	std::multimap<std::string,std::string>& CollectArg(int argc, char** argv, int begin_idx);
+	std::multimap<std::string, std::string>& CollectArg(int argc, char** argv, int begin_idx);
 
 	/**
 		@brief Get args

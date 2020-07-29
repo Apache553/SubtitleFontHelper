@@ -30,7 +30,7 @@ int WINAPI wWinMain(
 	_In_ int nShowCmd
 ) {
 	// init COM
-	if (CoInitializeEx(NULL,COINITBASE_MULTITHREADED) != S_OK) {
+	if (CoInitializeEx(NULL, COINITBASE_MULTITHREADED) != S_OK) {
 		MessageBoxW(NULL, L"CoInitialize failed.", L"Error", MB_OK | MB_ICONERROR);
 		return -1;
 	}
@@ -76,6 +76,8 @@ Available Targets&Options:\n \
             this option can be used with any target, specify a config file to use(utf8 no BOM)\n \
         -nodep\n \
             this option can be used with any target, ignore all config files\n \
+        -verbose\n \
+            this option can be used with any target, cause more output\n \
     1. ass\n \
         -file <filename>\n \
             specify the file will be processed\n \
@@ -114,6 +116,8 @@ Available Targets&Options:\n \
             monitor process creation event to do inject hook\n \
         -process <executable name>\n \
             specify process executable name to be monitored(this option can be used multiple times)\n \
+        -pollinterval <interval>\n \
+            a float point value indicates the interval between wmi event polls,must greater than 0\n \
     4. config\n \
         -edit\n \
             open current config file with system text editor, if '-nodep' is present, nothing will happen\n \
@@ -147,7 +151,8 @@ int CmdMain(int argc, char** argv, int begin_index) {
 				{"-nocon",false,false},
 				{"-index",true,true},
 				{"-config",true,false},
-				{"-nodep",false,false}
+				{"-nodep",false,false},
+				{"-verbose",false,false}
 				});
 			try {
 				collector.CollectArg(argc, argv, i + 1);
@@ -157,7 +162,8 @@ int CmdMain(int argc, char** argv, int begin_index) {
 				if (!no_messagebox)MessageBoxW(NULL, UTF8ToStdWString(e.what()).c_str(), L"Error", MB_OK | MB_ICONERROR);
 				return -1;
 			}
-		}else if (strcmp(argv[i], "index") == 0) {
+		}
+		else if (strcmp(argv[i], "index") == 0) {
 			CommandLineArgCollector collector({
 				{"-dir",true,false,true},
 				{"-output",true,false,true},
@@ -165,7 +171,8 @@ int CmdMain(int argc, char** argv, int begin_index) {
 				{"-nocon",false,false},
 				{"-config",true,false},
 				{"-writeconf",false,false},
-				{"-nodep",false,false}
+				{"-nodep",false,false},
+				{"-verbose",false,false}
 				});
 			try {
 				collector.CollectArg(argc, argv, i + 1);
@@ -175,14 +182,17 @@ int CmdMain(int argc, char** argv, int begin_index) {
 				if (!no_messagebox)MessageBoxW(NULL, UTF8ToStdWString(e.what()).c_str(), L"Error", MB_OK | MB_ICONERROR);
 				return -1;
 			}
-		}else if (strcmp(argv[i], "daemon") == 0) {
+		}
+		else if (strcmp(argv[i], "daemon") == 0) {
 			CommandLineArgCollector collector({
 				{"-index",true,true},
 				{"-procmon",false,false},
 				{"-process",true,true},
+				{"-pollinterval",true,false},
 				{"-nocon",false,false},
 				{"-config",true,false},
-				{"-nodep",false,false}
+				{"-nodep",false,false},
+				{"-verbose",false,false}
 				});
 			try {
 				collector.CollectArg(argc, argv, i + 1);
@@ -200,7 +210,8 @@ int CmdMain(int argc, char** argv, int begin_index) {
 				{"-del",true,false},
 				{"-value",true,false},
 				{"-config",true,false},
-				{"-nodep",false,false}
+				{"-nodep",false,false},
+				{"-verbose",false,false}
 				});
 			try {
 				collector.CollectArg(argc, argv, i + 1);
@@ -210,10 +221,12 @@ int CmdMain(int argc, char** argv, int begin_index) {
 				if (!no_messagebox)MessageBoxW(NULL, UTF8ToStdWString(e.what()).c_str(), L"Error", MB_OK | MB_ICONERROR);
 				return -1;
 			}
-		}else if (strcmp(argv[i], "help") == 0) {
+		}
+		else if (strcmp(argv[i], "help") == 0) {
 			MessageBoxW(NULL, usage, L"Usage", MB_OK);
 			return 0;
-		}else {
+		}
+		else {
 			MessageBoxW(NULL, usage, L"Usage", MB_OK);
 			return 0;
 		}
@@ -226,7 +239,7 @@ int GUIMain(int argc, char** argv) {
 	//MainWindow main_window;
 	//main_window.show();
 	//return app.exec();
-	MessageBoxW(NULL, L"GUI interface has not finished yet. Please use this tool in command line with '-nogui' option the first option.", 
+	MessageBoxW(NULL, L"GUI interface has not finished yet. Please use this tool in command line with '-nogui' option the first option.",
 		L"Sorry", MB_OK | MB_ICONERROR);
 	return 0;
 }

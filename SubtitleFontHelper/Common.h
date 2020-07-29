@@ -7,6 +7,9 @@
 #include <cwctype>
 #include <locale>
 #include <algorithm>
+#include <mutex>
+
+#include "Logger.h"
 
 struct CaseInsensitiveHasher {
 	size_t operator()(const std::wstring& str)const;
@@ -44,22 +47,4 @@ void WalkDirectory(std::wstring path, bool& flag, bool resursive, WalkCallback c
 
 std::wstring DetectFontExtensionName(const char* mem, size_t len);
 
-struct _DebugOutput {
-	template<typename T>
-	auto operator <<(const T& val) -> decltype(std::to_wstring(val), void(), (*this)){
-		*this << std::to_wstring(val);
-		return *this;
-	}
-
-	_DebugOutput& operator <<(const std::wstring& str);
-
-	_DebugOutput& operator <<(wchar_t ch);
-
-	_DebugOutput() {}
-	_DebugOutput(const _DebugOutput&) = delete;
-	_DebugOutput(_DebugOutput&&) = delete;
-	_DebugOutput& operator=(const _DebugOutput&) = delete;
-	_DebugOutput& operator=(_DebugOutput&&) = delete;
-};
-
-extern _DebugOutput dbgout;
+extern MyLogger g_logger;

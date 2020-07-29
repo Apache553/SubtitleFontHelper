@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <exception>
 
-typedef std::function<void(const std::wstring& exec_path, uint32_t process_id)> ProcessCreatedCallback;
+typedef std::function<void(const std::wstring& path, uint32_t process_id)> ProcessCreatedCallback;
 
 class _impl_ProcessMonitor;
 
@@ -25,5 +25,11 @@ public:
 	void RunMonitor();
 	void CancelMonitor();
 
+	bool IsRunning()const;
+
 	std::exception_ptr GetLastException();
+
+	void SetPollInterval(float interval);
+
+	static int AdjustPrivilege();
 };

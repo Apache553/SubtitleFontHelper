@@ -29,4 +29,4 @@ extern "C" {
 
 }
 
-void InjectNotification();
+void InjectNotification(bool status);
