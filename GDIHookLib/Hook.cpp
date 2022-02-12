@@ -221,4 +221,10 @@ extern "C" {
 		HFONT ret = True_CreateFontIndirectExW(r);
 		return ret;
 	}
+
+    int   WINAPI HookedEnumFontFamiliesW(HDC hdc, LPCWSTR lpLogfont, FONTENUMPROCW lpProc, LPARAM lParam){
+        QueryAndLoadFont(lpLogfont);
+        int ret = True_EnumFontFamiliesW(hdc, lpLogfont, lpProc, lParam);
+        return ret;
+    }
 }
