@@ -413,6 +413,7 @@ static std::vector<FontItem> GetFontItemFromMemory(void* mem, size_t size, const
 			int plat = -1, enc = -1, lang = -1;
 			std::wstring loc_name;
 			std::wstring loc_fullname;
+            std::wstring loc_psname;
 
 			for (FT_UInt si = 0; si < sfnt_name_count; ++si) {
 				FT_SfntName sfnt_name;
@@ -443,6 +444,9 @@ static std::vector<FontItem> GetFontItemFromMemory(void* mem, size_t size, const
 				else if (sfnt_name.name_id == TT_NAME_ID_FULL_NAME) {
 					loc_fullname.swap(widename);
 				}
+                else if (sfnt_name.name_id == TT_NAME_ID_PS_NAME){
+                    loc_psname.swap(widename);
+                }
 			}
 			if (!loc_name.empty()) {
 				ret.emplace_back(FontItem{ loc_name,path });
@@ -452,6 +456,10 @@ static std::vector<FontItem> GetFontItemFromMemory(void* mem, size_t size, const
 				ret.emplace_back(FontItem{ loc_fullname,path });
 				loc_fullname.clear();
 			}
+            if (!loc_psname.empty()) {
+                ret.emplace_back(FontItem{ loc_psname,path });
+                loc_psname.clear();
+            }
 		}
 		else {
 			if (!name.empty()) {

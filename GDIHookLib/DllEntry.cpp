@@ -15,6 +15,7 @@ HFONT(WINAPI* True_CreateFontW)(_In_ int cHeight, _In_ int cWidth, _In_ int cEsc
 	_In_ DWORD iQuality, _In_ DWORD iPitchAndFamily, _In_opt_ LPCWSTR pszFaceName) = CreateFontW;
 HFONT(WINAPI* True_CreateFontIndirectExA)(_In_ CONST ENUMLOGFONTEXDVA*) = CreateFontIndirectExA;
 HFONT(WINAPI* True_CreateFontIndirectExW)(_In_ CONST ENUMLOGFONTEXDVW*) = CreateFontIndirectExW;
+int  (WINAPI* True_EnumFontFamiliesW)( _In_ HDC hdc, _In_opt_ LPCWSTR lpLogfont, _In_ FONTENUMPROCW lpProc, _In_ LPARAM lParam) = EnumFontFamiliesW;
 
 #include <string>
 #include <memory>
@@ -46,6 +47,7 @@ BOOL WINAPI DllMain(
 			DetourAttach(&(PVOID&)True_CreateFontIndirectA, HookedCreateFontIndirectA);
 			DetourAttach(&(PVOID&)True_CreateFontIndirectExW, HookedCreateFontIndirectExW);
 			DetourAttach(&(PVOID&)True_CreateFontIndirectExA, HookedCreateFontIndirectExA);
+            DetourAttach(&(PVOID&)True_EnumFontFamiliesW, HookedEnumFontFamiliesW);
 			detour_error = DetourTransactionCommit();
 			InjectNotification(detour_error == NOERROR);
 			if (detour_error != NO_ERROR) {
@@ -73,6 +75,7 @@ BOOL WINAPI DllMain(
 			DetourDetach(&(PVOID&)True_CreateFontIndirectA, HookedCreateFontIndirectA);
 			DetourDetach(&(PVOID&)True_CreateFontIndirectExW, HookedCreateFontIndirectExW);
 			DetourDetach(&(PVOID&)True_CreateFontIndirectExA, HookedCreateFontIndirectExA);
+            DetourDetach(&(PVOID&)True_EnumFontFamiliesW, HookedEnumFontFamiliesW);
 			DetourTransactionCommit();
 		}
 		break;
