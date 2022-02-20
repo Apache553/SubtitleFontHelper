@@ -1,4 +1,0 @@
-
-LIBRARY GDIHook64
-EXPORTS
-DoInject @ 1
