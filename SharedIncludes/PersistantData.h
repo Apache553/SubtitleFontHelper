@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <memory>
 
 namespace sfh
 {
@@ -24,7 +25,7 @@ namespace sfh
 		std::vector<IndexFileElement> m_indexFile;
 		std::vector<MonitorProcessElement> m_monitorProcess;
 
-		static ConfigFile ReadFromFile(const std::wstring& path);
+		static std::unique_ptr<ConfigFile> ReadFromFile(const std::wstring& path);
 		static void WriteToFile(const std::wstring& path, const ConfigFile& config);
 	};
 
@@ -82,7 +83,7 @@ namespace sfh
 
 		std::vector<FontFaceElement> m_fonts;
 
-		static FontDatabase ReadFromFile(const std::wstring& path);
+		static std::unique_ptr<FontDatabase> ReadFromFile(const std::wstring& path);
 		static void WriteToFile(const std::wstring& path, const FontDatabase& db);
 	};
 }

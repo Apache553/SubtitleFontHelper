@@ -1,8 +1,12 @@
 #include "PersistantData.h"
 
+#include <vector>
 #include <cassert>
 #include <stdexcept>
 #include <atomic>
+#include <cwctype>
+#include <memory>
+#include <variant>
 
 #include <Windows.h>
 #undef max
@@ -18,37 +22,458 @@
 
 namespace
 {
-	wil::unique_bstr GetNodeName(IXMLDOMNode* node)
+	class SimpleSAXContentHandler : public ISAXContentHandler
 	{
-		wil::unique_bstr name;
-		THROW_IF_FAILED(node->get_nodeName(name.put()));
-		return name;
-	}
+	private:
+		ULONG m_refCount = 1;
+	public:
+		virtual ~SimpleSAXContentHandler() = default;
 
-	wil::unique_bstr GetNodeText(IXMLDOMNode* node)
-	{
-		wil::unique_bstr value;
-		if (THROW_IF_FAILED(node->get_text(value.addressof())) != S_OK)
-			return {};
-		return value;
-	}
+		HRESULT STDMETHODCALLTYPE QueryInterface(const IID& riid, void** ppvObject) override
+		{
+			if (ppvObject == nullptr)
+				return E_INVALIDARG;
+			if (riid == IID_IUnknown)
+			{
+				*ppvObject = static_cast<IUnknown*>(this);
+			}
+			else if (riid == IID_ISAXContentHandler)
+			{
+				*ppvObject = static_cast<ISAXContentHandler*>(this);
+			}
+			else
+			{
+				return E_NOINTERFACE;
+			}
+			return S_OK;
+		}
 
-	wil::unique_bstr GetAttributeText(IXMLDOMNamedNodeMap* map, const wchar_t* name)
+		ULONG STDMETHODCALLTYPE AddRef() override
+		{
+			return ++m_refCount;
+		}
+
+		ULONG STDMETHODCALLTYPE Release() override
+		{
+			ULONG refCount = --m_refCount;
+			if (refCount == 0)
+				delete this;
+			return refCount;
+		}
+
+		HRESULT STDMETHODCALLTYPE putDocumentLocator(ISAXLocator* pLocator) override
+		{
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE startDocument() override
+		{
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE endDocument() override
+		{
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE startPrefixMapping(const wchar_t* pwchPrefix, int cchPrefix, const wchar_t* pwchUri,
+		                           int cchUri) override
+		{
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE endPrefixMapping(const wchar_t* pwchPrefix, int cchPrefix) override
+		{
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE startElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri, const wchar_t* pwchLocalName,
+		                     int cchLocalName, const wchar_t* pwchQName, int cchQName,
+		                     ISAXAttributes* pAttributes) override
+		{
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE endElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri, const wchar_t* pwchLocalName,
+		                   int cchLocalName, const wchar_t* pwchQName, int cchQName) override
+		{
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE characters(const wchar_t* pwchChars, int cchChars) override
+		{
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE ignorableWhitespace(const wchar_t* pwchChars, int cchChars) override
+		{
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE processingInstruction(const wchar_t* pwchTarget, int cchTarget, const wchar_t* pwchData,
+		                              int cchData) override
+		{
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE skippedEntity(const wchar_t* pwchName, int cchName) override
+		{
+			return S_OK;
+		}
+	};
+
+	class ConfigSAXContentHandler : public SimpleSAXContentHandler
 	{
-		wil::com_ptr<IXMLDOMNode> attribute;
-		if (THROW_IF_FAILED(map->getNamedItem(wil::make_bstr(name).get(), attribute.put())) != S_OK)
-			return {};
-		return GetNodeText(attribute.get());
-	}
+	private:
+		enum class ElementType:size_t
+		{
+			Document = 0,
+			RootElement,
+			IndexFileElement,
+			MonitorElement
+		};
+
+		std::unique_ptr<sfh::ConfigFile> m_config;
+		std::vector<ElementType> m_status;
+
+	public:
+		HRESULT STDMETHODCALLTYPE startDocument() override
+		{
+			m_config = std::make_unique<sfh::ConfigFile>();
+			m_status.clear();
+			m_status.emplace_back(ElementType::Document);
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE endDocument() override
+		{
+			if (!m_status.empty() && m_status.back() == ElementType::Document)
+				m_status.pop_back();
+			if (m_status.empty())
+				return S_OK;
+			return E_FAIL;
+		}
+
+		HRESULT STDMETHODCALLTYPE startElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri, const wchar_t* pwchLocalName,
+		                     int cchLocalName, const wchar_t* pwchQName, int cchQName,
+		                     ISAXAttributes* pAttributes) override
+		{
+			if (m_status.empty())
+				return E_FAIL;
+			switch (m_status.back())
+			{
+			case ElementType::Document:
+				if (wcsncmp(pwchLocalName, L"ConfigFile", cchLocalName) == 0)
+				{
+					m_status.emplace_back(ElementType::RootElement);
+				}
+				else
+				{
+					return E_FAIL;
+				}
+				break;
+			case ElementType::RootElement:
+				if (wcsncmp(pwchLocalName, L"IndexFile", cchLocalName) == 0)
+				{
+					m_config->m_indexFile.emplace_back();
+					m_status.emplace_back(ElementType::IndexFileElement);
+				}
+				else if (wcsncmp(pwchLocalName, L"MonitorProcess", cchLocalName) == 0)
+				{
+					m_config->m_monitorProcess.emplace_back();
+					m_status.emplace_back(ElementType::MonitorElement);
+				}
+				else
+				{
+					return E_FAIL;
+				}
+				break;
+			case ElementType::IndexFileElement:
+				return E_FAIL;
+				break;
+			case ElementType::MonitorElement:
+				return E_FAIL;
+				break;
+			default:
+				return E_FAIL;
+			}
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE endElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri, const wchar_t* pwchLocalName,
+		                   int cchLocalName, const wchar_t* pwchQName, int cchQName) override
+		{
+			if (m_status.empty())
+				return E_FAIL;
+			switch (m_status.back())
+			{
+			case ElementType::RootElement:
+				if (wcsncmp(pwchLocalName, L"ConfigFile", cchLocalName) == 0)
+				{
+					m_status.pop_back();
+				}
+				else
+				{
+					return E_FAIL;
+				}
+				break;
+			case ElementType::IndexFileElement:
+				if (wcsncmp(pwchLocalName, L"IndexFile", cchLocalName) == 0)
+				{
+					m_status.pop_back();
+				}
+				else
+				{
+					return E_FAIL;
+				}
+				break;
+			case ElementType::MonitorElement:
+				if (wcsncmp(pwchLocalName, L"MonitorProcess", cchLocalName) == 0)
+				{
+					m_status.pop_back();
+				}
+				else
+				{
+					return E_FAIL;
+				}
+				break;
+			default:
+				return E_FAIL;
+			}
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE characters(const wchar_t* pwchChars, int cchChars) override
+		{
+			if (m_status.empty())
+				return E_FAIL;
+			switch (m_status.back())
+			{
+			case ElementType::IndexFileElement:
+				m_config->m_indexFile.back().m_path.assign(pwchChars, cchChars);
+				break;
+			case ElementType::MonitorElement:
+				m_config->m_monitorProcess.back().m_name.assign(pwchChars, cchChars);
+				break;
+			}
+			// ignore unexpected characters
+			return S_OK;
+		}
+
+		std::unique_ptr<sfh::ConfigFile> GetConfigFile()
+		{
+			return std::move(m_config);
+		}
+	};
+
+	class FontDatabaseSAXContentHandler : public SimpleSAXContentHandler
+	{
+	private:
+		enum class ElementType :size_t
+		{
+			Document = 0,
+			RootElement,
+			FontFaceElement,
+			Win32FamilyNameElement,
+			FullNameElement,
+			PostScriptNameElement
+		};
+
+		std::unique_ptr<sfh::FontDatabase> m_db;
+		std::vector<ElementType> m_status;
+
+	public:
+		static uint32_t wcstou32(const wchar_t* str, int length)
+		{
+			uint64_t ret = 0;
+			for (int i = 0; i < length; ++i)
+			{
+				if (str[i] > L'9' || str[i] < L'0')
+					throw std::out_of_range("unexpected character in numeric string");
+				ret *= 10;
+				ret += str[i] - L'0';
+				if (ret > std::numeric_limits<uint32_t>::max())
+					throw std::out_of_range("number too large");
+			}
+			return static_cast<uint32_t>(ret);
+		}
+
+		HRESULT STDMETHODCALLTYPE startDocument() override
+		{
+			m_db = std::make_unique<sfh::FontDatabase>();
+			m_status.clear();
+			m_status.emplace_back(ElementType::Document);
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE endDocument() override
+		{
+			if (!m_status.empty() && m_status.back() == ElementType::Document)
+				m_status.pop_back();
+			if (m_status.empty())
+				return S_OK;
+			return E_FAIL;
+		}
+
+		HRESULT STDMETHODCALLTYPE startElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri, const wchar_t* pwchLocalName,
+		                     int cchLocalName, const wchar_t* pwchQName, int cchQName,
+		                     ISAXAttributes* pAttributes) override
+		{
+			if (m_status.empty())
+				return E_FAIL;
+			switch (m_status.back())
+			{
+			case ElementType::Document:
+				if (wcsncmp(pwchLocalName, L"FontDatabase", cchLocalName) == 0)
+				{
+					m_status.emplace_back(ElementType::RootElement);
+				}
+				else
+				{
+					return E_FAIL;
+				}
+				break;
+			case ElementType::RootElement:
+				if (wcsncmp(pwchLocalName, L"FontFace", cchLocalName) == 0)
+				{
+					m_db->m_fonts.emplace_back();
+					m_status.emplace_back(ElementType::FontFaceElement);
+					const wchar_t* attrValue;
+					int attrLength;
+					if (FAILED(pAttributes->getValueFromName(L"", 0, L"path", 4, &attrValue, &attrLength)))
+						return E_FAIL;
+					m_db->m_fonts.back().m_path.assign(attrValue, attrLength);
+					if (FAILED(pAttributes->getValueFromName(L"", 0, L"index", 5, &attrValue, &attrLength)))
+						return E_FAIL;
+					m_db->m_fonts.back().m_index = wcstou32(attrValue, attrLength);
+				}
+				else
+				{
+					return E_FAIL;
+				}
+				break;
+			case ElementType::FontFaceElement:
+				if (wcsncmp(pwchLocalName, L"Win32FamilyName", cchLocalName) == 0)
+				{
+					m_status.emplace_back(ElementType::Win32FamilyNameElement);
+					m_db->m_fonts.back().m_names.emplace_back();
+					m_db->m_fonts.back().m_names.back().m_type =
+						sfh::FontDatabase::FontFaceElement::NameElement::Win32FamilyName;
+				}
+				else if (wcsncmp(pwchLocalName, L"FullName", cchLocalName) == 0)
+				{
+					m_status.emplace_back(ElementType::FullNameElement);
+					m_db->m_fonts.back().m_names.emplace_back();
+					m_db->m_fonts.back().m_names.back().m_type =
+						sfh::FontDatabase::FontFaceElement::NameElement::FullName;
+				}
+				else if (wcsncmp(pwchLocalName, L"PostScriptName", cchLocalName) == 0)
+				{
+					m_status.emplace_back(ElementType::PostScriptNameElement);
+					m_db->m_fonts.back().m_names.emplace_back();
+					m_db->m_fonts.back().m_names.back().m_type =
+						sfh::FontDatabase::FontFaceElement::NameElement::PostScriptName;
+				}
+				else
+				{
+					return E_FAIL;
+				}
+				break;
+			default:
+				return E_FAIL;
+			}
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE endElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri, const wchar_t* pwchLocalName,
+		                   int cchLocalName, const wchar_t* pwchQName, int cchQName) override
+		{
+			if (m_status.empty())
+				return E_FAIL;
+			switch (m_status.back())
+			{
+			case ElementType::RootElement:
+				if (wcsncmp(pwchLocalName, L"FontDatabase", cchLocalName) == 0)
+				{
+					m_status.pop_back();
+				}
+				else
+				{
+					return E_FAIL;
+				}
+				break;
+			case ElementType::FontFaceElement:
+				if (wcsncmp(pwchLocalName, L"FontFace", cchLocalName) == 0)
+				{
+					m_status.pop_back();
+				}
+				else
+				{
+					return E_FAIL;
+				}
+				break;
+			case ElementType::Win32FamilyNameElement:
+				if (wcsncmp(pwchLocalName, L"Win32FamilyName", cchLocalName) == 0)
+				{
+					m_status.pop_back();
+				}
+				else
+				{
+					return E_FAIL;
+				}
+				break;
+			case ElementType::FullNameElement:
+				if (wcsncmp(pwchLocalName, L"FullName", cchLocalName) == 0)
+				{
+					m_status.pop_back();
+				}
+				else
+				{
+					return E_FAIL;
+				}
+				break;
+			case ElementType::PostScriptNameElement:
+				if (wcsncmp(pwchLocalName, L"PostScriptName", cchLocalName) == 0)
+				{
+					m_status.pop_back();
+				}
+				else
+				{
+					return E_FAIL;
+				}
+				break;
+			default:
+				return E_FAIL;
+			}
+			return S_OK;
+		}
+
+		HRESULT STDMETHODCALLTYPE characters(const wchar_t* pwchChars, int cchChars) override
+		{
+			if (m_status.empty())
+				return E_FAIL;
+			switch (m_status.back())
+			{
+			case ElementType::Win32FamilyNameElement:
+			case ElementType::FullNameElement:
+			case ElementType::PostScriptNameElement:
+				m_db->m_fonts.back().m_names.back().m_name.assign(pwchChars, cchChars);
+			}
+			// ignore unexpected characters
+			return S_OK;
+		}
+
+		std::unique_ptr<sfh::FontDatabase> GetFontDatabase()
+		{
+			return std::move(m_db);
+		}
+	};
 }
 
-sfh::ConfigFile sfh::ConfigFile::ReadFromFile(const std::wstring& path)
+std::unique_ptr<sfh::ConfigFile> sfh::ConfigFile::ReadFromFile(const std::wstring& path)
 {
-	ConfigFile ret;
-	assert(SUCCEEDED(CoInitialize(nullptr)));
+	THROW_IF_FAILED(CoInitialize(nullptr));
 	auto uninitializeCom = wil::scope_exit([]() { CoUninitialize(); });
-
-	auto document = wil::CoCreateInstance<IXMLDOMDocument>(CLSID_DOMDocument30);
 
 	wil::unique_variant pathVariant;
 	wil::com_ptr<IStream> stream;
@@ -62,67 +487,18 @@ sfh::ConfigFile sfh::ConfigFile::ReadFromFile(const std::wstring& path)
 			stream.put()));
 	InitVariantFromUnknown(stream.query<IUnknown>().get(), pathVariant.addressof());
 
-	VARIANT_BOOL isSuccessful = VARIANT_FALSE;
-	THROW_IF_FAILED(document->load(pathVariant, &isSuccessful));
-	if (isSuccessful == VARIANT_FALSE)throw std::runtime_error("failed to load xml");
+	auto saxReader = wil::CoCreateInstance<ISAXXMLReader>(CLSID_SAXXMLReader30);
+	wil::com_ptr<ConfigSAXContentHandler> handler(new ConfigSAXContentHandler);
+	THROW_IF_FAILED(saxReader->putContentHandler(handler.get()));
+	THROW_IF_FAILED_MSG(saxReader->parse(pathVariant), "BAD CONFIG: %ws", path.c_str());
 
-
-	wil::com_ptr<IXMLDOMElement> rootNode;
-	if (THROW_IF_FAILED(document->get_documentElement(rootNode.put())) == S_FALSE)
-		throw std::runtime_error("invalid xml");
-
-	auto rootNodeName = GetNodeName(rootNode.get());
-	if (wcscmp(rootNodeName.get(), L"ConfigFile") != 0)
-		throw std::runtime_error("invalid config xml");
-
-	// get all child nodes
-	wil::com_ptr<IXMLDOMNodeList> childNodes;
-	THROW_IF_FAILED(rootNode->get_childNodes(childNodes.put()));
-
-	// traverse all child nodes
-	wil::com_ptr<IXMLDOMNode> childNode;
-	THROW_IF_FAILED(childNodes->nextNode(childNode.put()));
-	while (childNode)
-	{
-		auto nodeName = GetNodeName(childNode.get());
-		if (wcscmp(nodeName.get(), L"IndexFile") == 0)
-		{
-			// IndexFile
-			IndexFileElement item;
-
-			if (auto value = GetNodeText(childNode.get()))
-			{
-				item.m_path = value.get();
-				ret.m_indexFile.emplace_back(std::move(item));
-			}
-		}
-		else if (wcscmp(nodeName.get(), L"MonitorProcess") == 0)
-		{
-			// MonitorProcess
-			MonitorProcessElement item;
-
-			wil::com_ptr<IXMLDOMNamedNodeMap> map;
-			THROW_IF_FAILED(childNode->get_attributes(map.put()));
-
-			if (auto value = GetNodeText(childNode.get()))
-			{
-				item.m_name = value.get();
-				ret.m_monitorProcess.emplace_back(std::move(item));
-			}
-		}
-		THROW_IF_FAILED(childNodes->nextNode(childNode.put()));
-	}
-
-	return ret;
+	return handler->GetConfigFile();
 }
 
-sfh::FontDatabase sfh::FontDatabase::ReadFromFile(const std::wstring& path)
+std::unique_ptr<sfh::FontDatabase> sfh::FontDatabase::ReadFromFile(const std::wstring& path)
 {
-	FontDatabase ret;
-	assert(SUCCEEDED(CoInitialize(nullptr)));
+	THROW_IF_FAILED(CoInitialize(nullptr));
 	auto uninitializeCom = wil::scope_exit([]() { CoUninitialize(); });
-
-	auto document = wil::CoCreateInstance<IXMLDOMDocument>(CLSID_DOMDocument30);
 
 	wil::unique_variant pathVariant;
 	wil::com_ptr<IStream> stream;
@@ -136,105 +512,12 @@ sfh::FontDatabase sfh::FontDatabase::ReadFromFile(const std::wstring& path)
 			stream.put()));
 	InitVariantFromUnknown(stream.query<IUnknown>().get(), pathVariant.addressof());
 
-	VARIANT_BOOL isSuccessful = VARIANT_FALSE;
-	THROW_IF_FAILED(document->load(pathVariant, &isSuccessful));
-	if (isSuccessful == VARIANT_FALSE)throw std::runtime_error("failed to load xml");
+	auto saxReader = wil::CoCreateInstance<ISAXXMLReader>(CLSID_SAXXMLReader30);
+	wil::com_ptr<FontDatabaseSAXContentHandler> handler(new FontDatabaseSAXContentHandler);
+	THROW_IF_FAILED(saxReader->putContentHandler(handler.get()));
+	THROW_IF_FAILED_MSG(saxReader->parse(pathVariant), "BAD FONTDATABASE: %ws", path.c_str());
 
-	wil::com_ptr<IXMLDOMElement> rootNode;
-	if (THROW_IF_FAILED(document->get_documentElement(rootNode.put())) == S_FALSE)
-		throw std::runtime_error("invalid xml");
-
-	// validate font database root element name
-	auto rootNodeName = GetNodeName(rootNode.get());
-	if (wcscmp(rootNodeName.get(), L"FontDatabase") != 0)
-		throw std::runtime_error("invalid font database xml");
-
-	wil::com_ptr<IXMLDOMNodeList> fontfaceList;
-	THROW_IF_FAILED(rootNode->get_childNodes(fontfaceList.put()));
-
-	// reserve space
-	long fontfaceCount = 0;
-	THROW_IF_FAILED(fontfaceList->get_length(&fontfaceCount));
-	ret.m_fonts.reserve(fontfaceCount);
-
-	wil::com_ptr<IXMLDOMNode> fontface;
-	THROW_IF_FAILED(fontfaceList->nextNode(fontface.put()));
-	for (; fontface; THROW_IF_FAILED(fontfaceList->nextNode(fontface.put())))
-	{
-		// validate fontface element name
-		auto elementName = GetNodeName(fontface.get());
-		if (wcscmp(elementName.get(), L"FontFace") == 0)
-		{
-			// this is a font face
-			FontFaceElement item;
-
-			wil::com_ptr<IXMLDOMNamedNodeMap> map;
-			THROW_IF_FAILED(fontface->get_attributes(map.put()));
-
-			if (auto value = GetAttributeText(map.get(), L"path"))
-			{
-				item.m_path = value.get();
-			}
-			if (auto value = GetAttributeText(map.get(), L"index"))
-			{
-				item.m_index = std::stoi(value.get());
-			}
-
-			// check necessary attributes
-			if (item.m_path.empty())
-				continue;
-			if (item.m_index == std::numeric_limits<uint32_t>::max())
-				continue;
-
-			// fetch names
-			wil::com_ptr<IXMLDOMNodeList> names;
-			THROW_IF_FAILED(fontface->get_childNodes(names.put()));
-
-			// reserve space
-			long nameCount;
-			THROW_IF_FAILED(names->get_length(&nameCount));
-			item.m_names.reserve(nameCount);
-
-			wil::com_ptr<IXMLDOMNode> name;
-			THROW_IF_FAILED(names->nextNode(name.put()));
-			while (name)
-			{
-				auto nameName = GetNodeName(name.get());
-				if (wcscmp(nameName.get(),
-				           FontFaceElement::NameElement::TYPEMAP[
-					           FontFaceElement::NameElement::Win32FamilyName]) == 0)
-				{
-					if (auto text = GetNodeText(name.get()))
-					{
-						item.m_names.emplace_back(FontFaceElement::NameElement::Win32FamilyName, text.get());
-					}
-				}
-				else if (wcscmp(nameName.get(),
-				                FontFaceElement::NameElement::TYPEMAP[
-					                FontFaceElement::NameElement::FullName]) == 0)
-				{
-					if (auto text = GetNodeText(name.get()))
-					{
-						item.m_names.emplace_back(FontFaceElement::NameElement::FullName, text.get());
-					}
-				}
-				else if (wcscmp(nameName.get(),
-				                FontFaceElement::NameElement::TYPEMAP[
-					                FontFaceElement::NameElement::PostScriptName]) == 0)
-				{
-					if (auto text = GetNodeText(name.get()))
-					{
-						item.m_names.emplace_back(FontFaceElement::NameElement::PostScriptName, text.get());
-					}
-				}
-				THROW_IF_FAILED(names->nextNode(name.put()));
-			}
-
-			// add fontface into list
-			ret.m_fonts.emplace_back(std::move(item));
-		}
-	}
-	return ret;
+	return handler->GetFontDatabase();
 }
 
 namespace sfh
@@ -330,7 +613,7 @@ namespace sfh
 
 void sfh::ConfigFile::WriteToFile(const std::wstring& path, const ConfigFile& config)
 {
-	assert(SUCCEEDED(CoInitialize(nullptr)));
+	THROW_IF_FAILED(CoInitialize(nullptr));
 	auto uninitializeCom = wil::scope_exit([]() { CoUninitialize(); });
 
 	wil::com_ptr<IStream> stream;
@@ -347,10 +630,9 @@ void sfh::ConfigFile::WriteToFile(const std::wstring& path, const ConfigFile& co
 	WriteDocumentToFile(stream, document);
 }
 
-
 void sfh::FontDatabase::WriteToFile(const std::wstring& path, const FontDatabase& db)
 {
-	assert(SUCCEEDED(CoInitialize(nullptr)));
+	THROW_IF_FAILED(CoInitialize(nullptr));
 	auto uninitializeCom = wil::scope_exit([]() { CoUninitialize(); });
 
 	wil::com_ptr<IStream> stream;

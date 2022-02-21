@@ -39,7 +39,7 @@ public:
 				while (!m_exitEvent.is_signaled())
 				{
 					ResetOverlapped(&overlapped);
-					assert(ConnectNamedPipe(pipe.get(), &overlapped) == FALSE);
+					ConnectNamedPipe(pipe.get(), &overlapped);
 					THROW_LAST_ERROR_IF(GetLastError() != ERROR_IO_PENDING && GetLastError() != ERROR_PIPE_CONNECTED);
 					if (GetLastError() == ERROR_PIPE_CONNECTED)
 						connectedEvent.SetEvent();
@@ -99,7 +99,7 @@ private:
 	{
 		// generate pipe name
 		std::wstring pipeName = LR"_(\\.\pipe\SubtitleFontAutoLoaderRpc-)_";
-		pipeName += GetCurrentProcessOwnerSid();
+		pipeName += GetCurrentProcessUserSid();
 
 		wil::unique_handle pipe;
 		*pipe.put() = CreateNamedPipeW(

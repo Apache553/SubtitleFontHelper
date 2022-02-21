@@ -95,14 +95,14 @@ namespace sfh
 
 		void OnInit(const std::vector<std::wstring>& cmdline)
 		{
+			m_systemTray = std::make_unique<SystemTray>(this);
 			auto cfg = ConfigFile::ReadFromFile(LR"_(C:\Users\Apach\AppData\Local\SubtitleFontHelper.xml)_");
 			std::vector<std::unique_ptr<FontDatabase>> dbs;
-			dbs.emplace_back(
-				std::make_unique<FontDatabase>(FontDatabase::ReadFromFile(LR"_(E:\超级字体整合包 XZ\FontIndex.xml)_")));
-			m_systemTray = std::make_unique<SystemTray>(this);
+			dbs.emplace_back(FontDatabase::ReadFromFile(LR"_(E:\超级字体整合包 XZ\FontIndex.xml)_"));
 			m_queryService = std::make_unique<QueryService>(this);
 			m_rpcServer = std::make_unique<RpcServer>(this, m_queryService->GetRpcRequestHandler());
 			m_queryService->Load(std::move(dbs));
+			m_systemTray->NotifyFinishLoad();
 		}
 
 		void OnException(std::exception_ptr exception)

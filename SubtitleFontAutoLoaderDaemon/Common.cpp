@@ -58,7 +58,7 @@ std::wstring sfh::Utf8ToWideString(const std::string& str)
 void sfh::ErrorMessageBox(const std::wstring& text, const std::wstring& caption, long hResult)
 {
 	wil::unique_hlocal_string message;
-	assert(FormatMessageW(
+	THROW_LAST_ERROR_IF(FormatMessageW(
 		FORMAT_MESSAGE_ALLOCATE_BUFFER,
 		nullptr,
 		hResult,
@@ -66,7 +66,7 @@ void sfh::ErrorMessageBox(const std::wstring& text, const std::wstring& caption,
 		reinterpret_cast<LPWSTR>(message.put()),
 		0,
 		nullptr
-	));
+	) == 0);
 	MessageBoxW(nullptr, (text + L"\n\n" + message.get()).c_str(), caption.c_str(), MB_OK);
 }
 
@@ -83,22 +83,22 @@ std::string sfh::GetFileContent(const std::wstring& path)
 	return ret;
 }
 
-std::wstring sfh::GetCurrentProcessOwnerSid()
+std::wstring sfh::GetCurrentProcessUserSid()
 {
 	auto hToken = GetCurrentProcessToken();
-	PTOKEN_OWNER owner;
+	PTOKEN_USER user;
 	std::unique_ptr<char[]> buffer;
 	DWORD returnLength;
 	wil::unique_hlocal_string ret;;
 	if (GetTokenInformation(
 		hToken,
-		TokenOwner,
+		TokenUser,
 		nullptr,
 		0,
 		&returnLength) == FALSE && GetLastError() == ERROR_INSUFFICIENT_BUFFER)
 	{
 		buffer = std::make_unique<char[]>(returnLength);
-		owner = reinterpret_cast<PTOKEN_OWNER>(buffer.get());
+		user = reinterpret_cast<PTOKEN_USER>(buffer.get());
 	}
 	else
 	{
@@ -106,10 +106,10 @@ std::wstring sfh::GetCurrentProcessOwnerSid()
 	}
 	THROW_LAST_ERROR_IF(GetTokenInformation(
 		hToken,
-		TokenOwner,
-		owner,
+		TokenUser,
+		user,
 		returnLength,
 		&returnLength) == FALSE);
-	THROW_LAST_ERROR_IF(ConvertSidToStringSidW(owner->Owner, ret.put()) == FALSE);
+	THROW_LAST_ERROR_IF(ConvertSidToStringSidW(user->User.Sid, ret.put()) == FALSE);
 	return ret.get();
 }

@@ -15,22 +15,22 @@
 
 namespace sfh
 {
-	std::wstring GetCurrentProcessOwnerSid()
+	std::wstring GetCurrentProcessUserSid()
 	{
 		auto hToken = GetCurrentProcessToken();
-		PTOKEN_OWNER owner;
+		PTOKEN_USER user;
 		std::unique_ptr<char[]> buffer;
 		DWORD returnLength;
 		wil::unique_hlocal_string ret;;
 		if (GetTokenInformation(
 			hToken,
-			TokenOwner,
+			TokenUser,
 			nullptr,
 			0,
 			&returnLength) == FALSE && GetLastError() == ERROR_INSUFFICIENT_BUFFER)
 		{
 			buffer = std::make_unique<char[]>(returnLength);
-			owner = reinterpret_cast<PTOKEN_OWNER>(buffer.get());
+			user = reinterpret_cast<PTOKEN_USER>(buffer.get());
 		}
 		else
 		{
@@ -38,11 +38,11 @@ namespace sfh
 		}
 		THROW_LAST_ERROR_IF(GetTokenInformation(
 			hToken,
-			TokenOwner,
-			owner,
+			TokenUser,
+			user,
 			returnLength,
 			&returnLength) == FALSE);
-		THROW_LAST_ERROR_IF(ConvertSidToStringSidW(owner->Owner, ret.put()) == FALSE);
+		THROW_LAST_ERROR_IF(ConvertSidToStringSidW(user->User.Sid, ret.put()) == FALSE);
 		return ret.get();
 	}
 
@@ -62,7 +62,7 @@ namespace sfh
 			try
 			{
 				std::wstring versionShmName = L"SubtitleFontAutoLoaderSHM-";
-				versionShmName += GetCurrentProcessOwnerSid();
+				versionShmName += GetCurrentProcessUserSid();
 				m_version.reset(CreateFileMappingW(
 					INVALID_HANDLE_VALUE,
 					nullptr,
@@ -166,7 +166,7 @@ void sfh::QueryAndLoad(const wchar_t* str)
 	try
 	{
 		std::wstring pipeName = LR"_(\\.\pipe\SubtitleFontAutoLoaderRpc-)_";
-		pipeName += GetCurrentProcessOwnerSid();
+		pipeName += GetCurrentProcessUserSid();
 		wil::unique_hfile pipe(CreateFileW(
 			pipeName.c_str(),
 			GENERIC_READ | GENERIC_WRITE,

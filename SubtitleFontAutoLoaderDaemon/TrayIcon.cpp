@@ -11,23 +11,36 @@
 class sfh::SystemTray::Implementation
 {
 private:
+	constexpr static UINT WM_TRAY_ICON_MESSAGE = WM_USER;
+	constexpr static UINT WM_UPDATE_TRAY_ICON_MESSAGE = WM_USER + 1;
+
 	NOTIFYICONDATAW m_iconData = {};
 	HWND m_hWnd = nullptr;
 	std::thread m_trayThread;
 
 	IDaemon* m_daemon;
+	std::atomic<int> m_checkPoint = 0;
+
+	std::atomic<bool> m_loading = true;
 public:
 	Implementation(IDaemon* daemon)
 		: m_daemon(daemon)
 	{
-		std::atomic<int> barrier = 0;
 		m_trayThread = std::thread([&]()
 		{
-			SetupMessageWindow();
-			++barrier;
-			MessageLoop();
+			try
+			{
+				SetupMessageWindow();
+				++m_checkPoint;
+				MessageLoop();
+			}
+			catch (...)
+			{
+				++m_checkPoint;
+				m_daemon->NotifyException(std::current_exception());
+			}
 		});
-		while (barrier.load() == 0)
+		while (m_checkPoint.load() == 0)
 			std::this_thread::yield();
 	}
 
@@ -40,9 +53,13 @@ public:
 		}
 	}
 
-private:
-	constexpr static UINT WM_TRAY_ICON_MESSAGE = WM_USER;
+	void NotifyFinishLoad()
+	{
+		m_loading = false;
+		PostMessageW(m_hWnd, WM_UPDATE_TRAY_ICON_MESSAGE, 0, 0);
+	}
 
+private:
 	void SetupMessageWindow()
 	{
 		WNDCLASSW wndClass;
@@ -56,34 +73,43 @@ private:
 
 		RegisterClassW(&wndClass);
 
-		CreateWindowExW(
-			0,
-			wndClass.lpszClassName,
-			L"AutoLoaderDaemonTray",
-			WS_OVERLAPPEDWINDOW,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT,
-			nullptr,
-			nullptr,
-			wndClass.hInstance,
-			this
-		);
-
-		assert(m_hWnd);
+		THROW_LAST_ERROR_IF(
+			CreateWindowExW(
+				0,
+				wndClass.lpszClassName,
+				L"AutoLoaderDaemonTray",
+				WS_OVERLAPPEDWINDOW,
+				CW_USEDEFAULT,
+				CW_USEDEFAULT,
+				CW_USEDEFAULT,
+				CW_USEDEFAULT,
+				nullptr,
+				nullptr,
+				wndClass.hInstance,
+				this
+			) == nullptr);
 	}
 
-	void SetupTrayIcon()
+	void SetupTrayIcon(bool add)
 	{
-		RtlZeroMemory(&m_iconData, sizeof(m_iconData));
-		m_iconData.cbSize = sizeof(m_iconData);
-		m_iconData.hWnd = m_hWnd;
-		m_iconData.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-		m_iconData.uCallbackMessage = WM_TRAY_ICON_MESSAGE;
-		m_iconData.hIcon = LoadIconW(wil::GetModuleInstanceHandle(), MAKEINTRESOURCEW(IDI_TRAYICON));
-		wcscpy_s(m_iconData.szTip, L"SubtitleFontAutoLoaderDaemon");
-		Shell_NotifyIconW(NIM_ADD, &m_iconData);
+		if (add)
+		{
+			RtlZeroMemory(&m_iconData, sizeof(m_iconData));
+			m_iconData.cbSize = sizeof(m_iconData);
+			m_iconData.hWnd = m_hWnd;
+			m_iconData.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+			m_iconData.uCallbackMessage = WM_TRAY_ICON_MESSAGE;
+			m_iconData.hIcon = LoadIconW(wil::GetModuleInstanceHandle(), MAKEINTRESOURCEW(IDI_TRAYICON));
+		}
+		if (m_loading)
+		{
+			wcscpy_s(m_iconData.szTip, L"SubtitleFontAutoLoaderDaemon - Loading");
+		}
+		else
+		{
+			wcscpy_s(m_iconData.szTip, L"SubtitleFontAutoLoaderDaemon");
+		}
+		Shell_NotifyIconW(add ? NIM_ADD : NIM_MODIFY, &m_iconData);
 	}
 
 	void DestroyTrayIcon()
@@ -107,7 +133,7 @@ private:
 		switch (uMsg)
 		{
 		case WM_CREATE:
-			SetupTrayIcon();
+			SetupTrayIcon(true);
 			break;
 		case WM_CLOSE:
 			DestroyTrayIcon();
@@ -119,8 +145,11 @@ private:
 		case WM_TRAY_ICON_MESSAGE:
 			if (lParam == WM_RBUTTONUP)
 			{
-				ShowContextMenu(hWnd, uMsg, wParam, lParam);
+				ShowContextMenu(hWnd, uMsg, wParam, lParam, m_loading.load());
 			}
+		case WM_UPDATE_TRAY_ICON_MESSAGE:
+			SetupTrayIcon(false);
+			return 0;
 		case WM_COMMAND:
 			switch (LOWORD(wParam))
 			{
@@ -132,20 +161,20 @@ private:
 		default:
 			if (uMsg == WM_TASKBARCREATED)
 			{
-				SetupTrayIcon();
+				SetupTrayIcon(true);
 			}
 		}
 		return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 	}
 
-	static void ShowContextMenu(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+	static void ShowContextMenu(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, bool loading)
 	{
 		POINT cursorPos;
 
 		GetCursorPos(&cursorPos);
 		SetForegroundWindow(hWnd);
 		HMENU hMenu = LoadMenuW(wil::GetModuleInstanceHandle(), MAKEINTRESOURCEW(IDR_TRAYMENU));
-		HMENU hMenu1 = GetSubMenu(hMenu, 0);
+		HMENU hMenu1 = GetSubMenu(hMenu, loading ? 1 : 0);
 		TrackPopupMenuEx(hMenu1, TPM_LEFTALIGN | TPM_RIGHTBUTTON, cursorPos.x, cursorPos.y, hWnd, nullptr);
 		DestroyMenu(hMenu);
 	}
@@ -157,7 +186,6 @@ private:
 
 	static LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	{
-		assert(hWnd);
 		if (uMsg == WM_CREATE)
 		{
 			auto pCreate = reinterpret_cast<CREATESTRUCT*>(lParam);
@@ -180,3 +208,8 @@ sfh::SystemTray::SystemTray(IDaemon* daemon)
 }
 
 sfh::SystemTray::~SystemTray() = default;
+
+void sfh::SystemTray::NotifyFinishLoad()
+{
+	m_impl->NotifyFinishLoad();
+}

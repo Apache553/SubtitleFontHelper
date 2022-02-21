@@ -223,7 +223,7 @@ public:
 		: m_daemon(daemon)
 	{
 		std::wstring versionShmName = L"SubtitleFontAutoLoaderSHM-";
-		versionShmName += GetCurrentProcessOwnerSid();
+		versionShmName += GetCurrentProcessUserSid();
 		m_version.reset(CreateFileMappingW(
 			INVALID_HANDLE_VALUE,
 			nullptr,

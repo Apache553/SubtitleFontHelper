@@ -11,7 +11,7 @@ namespace sfh
 
 	std::string GetFileContent(const std::wstring& path);
 
-	std::wstring GetCurrentProcessOwnerSid();
+	std::wstring GetCurrentProcessUserSid();
 
 	[[noreturn]] inline void MarkUnreachable()
 	{

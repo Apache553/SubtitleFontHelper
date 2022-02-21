@@ -66,6 +66,10 @@ BEGIN
     BEGIN
         MENUITEM "Exit",                        ID_TRAYICONMENU_EXIT
     END
+    POPUP "TrayIconMenuLoading"
+    BEGIN
+        MENUITEM "Loading...",                  ID_TRAYICONMENULOADING_LOADING, INACTIVE
+    END
 END
 
 #endif    // Chinese (Simplified, PRC) resources
