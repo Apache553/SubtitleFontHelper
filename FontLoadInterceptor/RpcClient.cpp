@@ -13,6 +13,8 @@
 
 #undef max
 
+#include "EventLog.h"
+
 namespace sfh
 {
 	std::wstring GetCurrentProcessUserSid()
@@ -56,7 +58,7 @@ namespace sfh
 
 		std::unordered_set<std::wstring> m_cache;
 		std::mutex m_lock;
-	
+
 		QueryCache()
 		{
 			try
@@ -82,8 +84,8 @@ namespace sfh
 			}
 			m_good = true;
 		}
-	public:
 
+	public:
 		static QueryCache& GetInstance()
 		{
 			static QueryCache instance;
@@ -95,7 +97,8 @@ namespace sfh
 			if (!m_good)return true;
 			std::lock_guard lg(m_lock);
 			uint32_t newVerison = InterlockedCompareExchange(m_versionMem.get(), 0, 0);
-			if (newVerison != m_lastKnownVersion) {
+			if (newVerison != m_lastKnownVersion)
+			{
 				m_lastKnownVersion = newVerison;
 				m_cache.clear();
 			}
@@ -109,7 +112,8 @@ namespace sfh
 			if (!m_good)return;
 			std::lock_guard lg(m_lock);
 			uint32_t newVerison = InterlockedCompareExchange(m_versionMem.get(), 0, 0);
-			if (newVerison != m_lastKnownVersion) {
+			if (newVerison != m_lastKnownVersion)
+			{
 				m_lastKnownVersion = newVerison;
 				m_cache.clear();
 			}
@@ -175,11 +179,7 @@ void sfh::QueryAndLoad(const wchar_t* str)
 			OPEN_EXISTING,
 			0,
 			nullptr));
-		if (!pipe.is_valid())
-		{
-			// server is currently unavailable
-			return;
-		}
+		THROW_LAST_ERROR_IF(!pipe.is_valid());
 
 		uint32_t length = static_cast<uint32_t>(wcslen(str));
 		WritePipe(pipe.get(), &length, sizeof(uint32_t));
@@ -187,23 +187,28 @@ void sfh::QueryAndLoad(const wchar_t* str)
 
 		uint32_t responseCount;
 		ReadPipe(pipe.get(), &responseCount, sizeof(uint32_t));
-		std::vector<wchar_t> buffer;
+		std::vector<std::wstring> paths;
 		for (uint32_t i = 0; i < responseCount; ++i)
 		{
 			uint32_t pathLength;
 			ReadPipe(pipe.get(), &pathLength, sizeof(uint32_t));
-			if (buffer.size() < pathLength + 1)
-			{
-				buffer.resize(pathLength + 1);
-			}
-			ReadPipe(pipe.get(), buffer.data(), sizeof(wchar_t) * pathLength);
-			buffer[pathLength] = 0;
-			AddFontResourceExW(buffer.data(), FR_PRIVATE, 0);
+			std::wstring path(pathLength, 0);
+			ReadPipe(pipe.get(), path.data(), sizeof(wchar_t) * pathLength);
+			AddFontResourceExW(path.data(), FR_PRIVATE, 0);
+			paths.emplace_back(std::move(path));
 		}
 		QueryCache::GetInstance().AddToCache(str);
+		std::vector<const wchar_t*> logData;
+		for (auto& s : paths)
+		{
+			logData.push_back(s.c_str());
+		}
+		EventLog::GetInstance().LogDllQuerySuccess(GetCurrentProcessId(), GetCurrentThreadId(), str, logData);
 	}
-	catch (...)
+	catch (std::exception& e)
 	{
+		EventLog::GetInstance().LogDllQueryFailure(GetCurrentProcessId(), GetCurrentThreadId(), str,
+		                                           AnsiStringToWideString(e.what()).c_str());
 		// ignore exceptions
 	}
 }

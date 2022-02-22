@@ -3,6 +3,7 @@
 #include "Common.h"
 #include "QueryService.h"
 #include "RpcServer.h"
+#include "EventLog.h"
 
 #include <wil/resource.h>
 
@@ -241,7 +242,9 @@ public:
 
 	void UpdateVerison()
 	{
-		InterlockedIncrement(m_versionMem.get());
+		auto oldValue = InterlockedCompareExchange(m_versionMem.get(), 0, 0);
+		auto newValue = InterlockedIncrement(m_versionMem.get());
+		EventLog::GetInstance().LogDaemonBumpVersion(oldValue, newValue);
 	}
 
 	void Load(std::vector<std::unique_ptr<FontDatabase>>&& dbs)

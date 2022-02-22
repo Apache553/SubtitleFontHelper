@@ -15,12 +15,13 @@
 #include <strsafe.h>
 #include <shellapi.h>
 
+#include "event.h"
 
 namespace sfh
 {
 	class Daemon : public IDaemon
 	{
-	public:
+	private:
 		enum class MessageType
 		{
 			Init = 0,
@@ -59,6 +60,7 @@ namespace sfh
 			m_queueCV.notify_one();
 		}
 
+	public:
 		int DaemonMain(const std::vector<std::wstring>& cmdline)
 		{
 			std::unique_lock ul(m_queueLock);
@@ -92,7 +94,7 @@ namespace sfh
 			}
 			MarkUnreachable();
 		}
-
+	private:
 		void OnInit(const std::vector<std::wstring>& cmdline)
 		{
 			m_systemTray = std::make_unique<SystemTray>(this);

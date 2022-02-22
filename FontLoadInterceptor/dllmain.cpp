@@ -2,6 +2,7 @@
 #include "pch.h"
 
 #include "AttachDetour.h"
+#include "EventLog.h"
 #include <clocale>
 
 BOOL APIENTRY DllMain(HMODULE hModule,
@@ -17,6 +18,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 		{
 			if (!sfh::AttachDetour())
 				return FALSE;
+			sfh::EventLog::GetInstance().LogDllAttach(GetCurrentProcessId());
 		}
 		break;
 	case DLL_THREAD_ATTACH:
