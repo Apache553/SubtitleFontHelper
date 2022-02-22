@@ -185,11 +185,13 @@
     <ClCompile Include="EventLog.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="pch.cpp" />
+    <ClCompile Include="ProcessMonitor.cpp" />
     <ClCompile Include="QueryService.cpp" />
     <ClCompile Include="RpcServer.cpp" />
     <ClCompile Include="TrayIcon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="eventTEMP.BIN" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -198,6 +200,7 @@
     <ClInclude Include="IDaemon.h" />
     <ClInclude Include="Options.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="ProcessMonitor.h" />
     <ClInclude Include="QueryService.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="RpcServer.h" />
@@ -205,9 +208,6 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="tray.ico" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PersistantDataLib\PersistantDataLib.vcxproj">
@@ -229,7 +229,11 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">mc.exe -um %(Identity) -z %(Filename) -h $(IntDir)exres -rc $(IntDir)exres</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compile Message</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)exres\%(Filename).h</Outputs>
+      <DeploymentContent>true</DeploymentContent>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="icon.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -165,6 +165,8 @@ namespace sfh
 
 void sfh::QueryAndLoad(const wchar_t* str)
 {
+	if (str == nullptr)
+		return;
 	if (!QueryCache::GetInstance().IsQueryNeeded(str))
 		return;
 	try
@@ -215,6 +217,8 @@ void sfh::QueryAndLoad(const wchar_t* str)
 
 void sfh::QueryAndLoad(const char* str)
 {
+	if (str == nullptr)
+		return;
 	try
 	{
 		auto wstr = AnsiStringToWideString(str);

@@ -23,20 +23,56 @@ namespace sfh
 
 		namespace Original
 		{
-			decltype(::CreateFontA)* CreateFontA = ::CreateFontA;
-			decltype(::CreateFontW)* CreateFontW = ::CreateFontW;
+			HFONT (WINAPI* CreateFontA)(_In_ int cHeight, _In_ int cWidth, _In_ int cEscapement,
+			                            _In_ int cOrientation,
+			                            _In_ int cWeight, _In_ DWORD bItalic,
+			                            _In_ DWORD bUnderline, _In_ DWORD bStrikeOut, _In_ DWORD iCharSet,
+			                            _In_ DWORD iOutPrecision, _In_ DWORD iClipPrecision,
+			                            _In_ DWORD iQuality, _In_ DWORD iPitchAndFamily,
+			                            _In_opt_ LPCSTR pszFaceName);
+			HFONT (WINAPI* CreateFontW)(_In_ int cHeight, _In_ int cWidth, _In_ int cEscapement,
+			                            _In_ int cOrientation,
+			                            _In_ int cWeight, _In_ DWORD bItalic,
+			                            _In_ DWORD bUnderline, _In_ DWORD bStrikeOut, _In_ DWORD iCharSet,
+			                            _In_ DWORD iOutPrecision, _In_ DWORD iClipPrecision,
+			                            _In_ DWORD iQuality, _In_ DWORD iPitchAndFamily,
+			                            _In_opt_ LPCWSTR pszFaceName);
 
-			decltype(::CreateFontIndirectA)* CreateFontIndirectA = ::CreateFontIndirectA;
-			decltype(::CreateFontIndirectW)* CreateFontIndirectW = ::CreateFontIndirectW;
+			HFONT (WINAPI* CreateFontIndirectA)(_In_ CONST LOGFONTA* lplf);
+			HFONT (WINAPI* CreateFontIndirectW)(_In_ CONST LOGFONTW* lplf);
 
-			decltype(::CreateFontIndirectExA)* CreateFontIndirectExA = ::CreateFontIndirectExA;
-			decltype(::CreateFontIndirectExW)* CreateFontIndirectExW = ::CreateFontIndirectExW;
+			HFONT (WINAPI* CreateFontIndirectExA)(_In_ CONST ENUMLOGFONTEXDVA*);
+			HFONT (WINAPI* CreateFontIndirectExW)(_In_ CONST ENUMLOGFONTEXDVW*);
 
-			decltype(::EnumFontFamiliesA)* EnumFontFamiliesA = ::EnumFontFamiliesA;
-			decltype(::EnumFontFamiliesW)* EnumFontFamiliesW = ::EnumFontFamiliesW;
+			int (WINAPI* EnumFontFamiliesA)(_In_ HDC hdc, _In_opt_ LPCSTR lpLogfont, _In_ FONTENUMPROCA lpProc,
+			                                _In_ LPARAM lParam);
+			int (WINAPI* EnumFontFamiliesW)(_In_ HDC hdc, _In_opt_ LPCWSTR lpLogfont, _In_ FONTENUMPROCW lpProc,
+			                                _In_ LPARAM lParam);
 
-			decltype(::EnumFontFamiliesExA)* EnumFontFamiliesExA = ::EnumFontFamiliesExA;
-			decltype(::EnumFontFamiliesExW)* EnumFontFamiliesExW = ::EnumFontFamiliesExW;
+			int (WINAPI* EnumFontFamiliesExA)(_In_ HDC hdc, _In_ LPLOGFONTA lpLogfont, _In_ FONTENUMPROCA lpProc,
+			                                  _In_ LPARAM lParam, _In_ DWORD dwFlags);
+			int (WINAPI* EnumFontFamiliesExW)(_In_ HDC hdc, _In_ LPLOGFONTW lpLogfont, _In_ FONTENUMPROCW lpProc,
+			                                  _In_ LPARAM lParam, _In_ DWORD dwFlags);
+		}
+
+		void LoadFunctionPointers()
+		{
+			HMODULE hGdi32 = LoadLibraryW(L"Gdi32.dll");
+			if (hGdi32)
+			{
+#define LoadAddress(Mod, Func) sfh::Detour::Original::Func = reinterpret_cast<decltype(sfh::Detour::Original::Func)>(GetProcAddress(Mod, #Func))
+				LoadAddress(hGdi32, CreateFontA);
+				LoadAddress(hGdi32, CreateFontW);
+				LoadAddress(hGdi32, CreateFontIndirectA);
+				LoadAddress(hGdi32, CreateFontIndirectW);
+				LoadAddress(hGdi32, CreateFontIndirectExA);
+				LoadAddress(hGdi32, CreateFontIndirectExW);
+				LoadAddress(hGdi32, EnumFontFamiliesA);
+				LoadAddress(hGdi32, EnumFontFamiliesW);
+				LoadAddress(hGdi32, EnumFontFamiliesExA);
+				LoadAddress(hGdi32, EnumFontFamiliesExW);
+#undef LoadAddress
+			}
 		}
 	}
 }
@@ -89,7 +125,7 @@ namespace
 	}
 
 	template <typename Original, typename Detour>
-	void DetourAttach(Original& ppPointer, Detour& pDetour)
+	void DetourAttachHelper(Original& ppPointer, Detour& pDetour)
 	{
 		if (::DetourAttach(reinterpret_cast<void**>(&ppPointer),
 		                   reinterpret_cast<void*>(pDetour)) == NO_ERROR)
@@ -123,16 +159,19 @@ bool sfh::AttachDetour()
 	{
 		DetourUpdateThread(thread.get());
 	}
-	DetourAttach(Detour::Original::CreateFontA, Detour::CreateFontA);
-	DetourAttach(Detour::Original::CreateFontW, Detour::CreateFontW);
-	DetourAttach(Detour::Original::CreateFontIndirectA, Detour::CreateFontIndirectA);
-	DetourAttach(Detour::Original::CreateFontIndirectW, Detour::CreateFontIndirectW);
-	DetourAttach(Detour::Original::CreateFontIndirectExA, Detour::CreateFontIndirectExA);
-	DetourAttach(Detour::Original::CreateFontIndirectExW, Detour::CreateFontIndirectExW);
-	DetourAttach(Detour::Original::EnumFontFamiliesA, Detour::EnumFontFamiliesA);
-	DetourAttach(Detour::Original::EnumFontFamiliesW, Detour::EnumFontFamiliesW);
-	DetourAttach(Detour::Original::EnumFontFamiliesExA, Detour::EnumFontFamiliesExA);
-	DetourAttach(Detour::Original::EnumFontFamiliesExW, Detour::EnumFontFamiliesExW);
+	DetourUpdateThread(GetCurrentThread());
+#define CheckAttach(Func) if(Detour::Original::Func != nullptr)DetourAttachHelper(Detour::Original::Func, Detour::Func)
+	CheckAttach(CreateFontA);
+	CheckAttach(CreateFontW);
+	CheckAttach(CreateFontIndirectA);
+	CheckAttach(CreateFontIndirectW);
+	CheckAttach(CreateFontIndirectExA);
+	CheckAttach(CreateFontIndirectExW);
+	CheckAttach(EnumFontFamiliesA);
+	CheckAttach(EnumFontFamiliesW);
+	CheckAttach(EnumFontFamiliesExA);
+	CheckAttach(EnumFontFamiliesExW);
+#undef CheckAttach
 	if (DetourTransactionCommit() != NO_ERROR)
 	{
 		return false;
@@ -148,6 +187,7 @@ bool sfh::DetachDetour()
 	{
 		DetourUpdateThread(thread.get());
 	}
+	DetourUpdateThread(GetCurrentThread());
 	for (auto& routine : Detour::g_detouredFunctions)
 	{
 		DetourDetach(routine.first, routine.second);

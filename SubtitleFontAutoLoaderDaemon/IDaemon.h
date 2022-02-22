@@ -10,5 +10,6 @@ namespace sfh
 		virtual ~IDaemon() = default;
 		virtual void NotifyException(std::exception_ptr exception) = 0;
 		virtual void NotifyExit() = 0;
+		virtual void NotifyReload() = 0;
 	};
 }

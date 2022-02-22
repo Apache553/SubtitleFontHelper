@@ -13,7 +13,7 @@ private:
 	IRpcRequestHandler* m_handler;
 
 	std::thread m_worker;
-	std::atomic<int> m_checkPoint;
+	std::atomic<size_t> m_checkPoint;
 	wil::unique_event m_exitEvent;
 
 

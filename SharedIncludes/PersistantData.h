@@ -21,6 +21,8 @@ namespace sfh
 			std::wstring m_name;
 		};
 
+		uint32_t wmiPollInterval = 500;
+
 		// content
 		std::vector<IndexFileElement> m_indexFile;
 		std::vector<MonitorProcessElement> m_monitorProcess;

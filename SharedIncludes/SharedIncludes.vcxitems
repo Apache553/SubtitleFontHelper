@@ -17,8 +17,4 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)EventLog.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)PersistantData.h" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="$(MSBuildThisFileDirectory)..\event.man" />
-    <None Include="$(MSBuildThisFileDirectory)..\registerETW.ps1" />
-  </ItemGroup>
 </Project>

@@ -127,7 +127,7 @@ void ScanDirectory(const wchar_t* path, std::vector<std::wstring>& result, T&& f
 		wcscpy_s(subDirectoryPointer, std::extent_v<decltype(WIN32_FIND_DATAW::cFileName)>, data.cFileName);
 		if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		{
-			ScanDirectory(subDirectoryBuffer.get(), result,std::move(filter));
+			ScanDirectory(subDirectoryBuffer.get(), result, std::move(filter));
 		}
 		else if (filter(subDirectoryBuffer.get()))
 		{

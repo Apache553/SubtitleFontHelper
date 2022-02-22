@@ -1,4 +1,3 @@
-
 #include "pch.h"
 #include "EventLog.h"
 
@@ -60,13 +59,12 @@ void sfh::EventLog::LogDllQueryFailure(uint32_t processId, uint32_t threadId, co
 	EventWriteDllQueryFailure(processId, threadId, requestName, reason);
 }
 
-void sfh::EventLog::LogDaemonTryAttach(uint32_t processId, const wchar_t* processName,
-                                       const wchar_t* processArchitecture)
+void sfh::EventLog::LogDllInjectProcessSuccess(uint32_t processId)
 {
-	EventWriteDaemonTryAttach(processId, processName, processArchitecture);
+	EventWriteDllInjectProcessSuccess(processId);
 }
 
-void sfh::EventLog::LogDaemonBumpVersion(uint32_t oldVersion, uint32_t newVersion)
+void sfh::EventLog::LogDllInjectProcessFailure(uint32_t processId, const wchar_t* reason)
 {
-	EventWriteDaemonBumpVersion(oldVersion, newVersion);
+	EventWriteDllInjectProcessFailure(processId, reason);
 }

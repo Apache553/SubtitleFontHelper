@@ -6,6 +6,5 @@ namespace sfal
 {
 	namespace Options
 	{
-		
 	}
 }

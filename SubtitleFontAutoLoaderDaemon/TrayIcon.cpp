@@ -19,7 +19,7 @@ private:
 	std::thread m_trayThread;
 
 	IDaemon* m_daemon;
-	std::atomic<int> m_checkPoint = 0;
+	std::atomic<size_t> m_checkPoint = 0;
 
 	std::atomic<bool> m_loading = true;
 public:
@@ -155,6 +155,9 @@ private:
 			{
 			case ID_TRAYICONMENU_EXIT:
 				m_daemon->NotifyExit();
+				break;
+			case ID_TRAYICONMENU_RELOAD:
+				m_daemon->NotifyReload();
 				break;
 			}
 			return 0;

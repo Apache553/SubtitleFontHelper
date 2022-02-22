@@ -22,6 +22,21 @@
 
 namespace
 {
+	uint32_t wcstou32(const wchar_t* str, int length)
+	{
+		uint64_t ret = 0;
+		for (int i = 0; i < length; ++i)
+		{
+			if (str[i] > L'9' || str[i] < L'0')
+				throw std::out_of_range("unexpected character in numeric string");
+			ret *= 10;
+			ret += str[i] - L'0';
+			if (ret > std::numeric_limits<uint32_t>::max())
+				throw std::out_of_range("number too large");
+		}
+		return static_cast<uint32_t>(ret);
+	}
+
 	class SimpleSAXContentHandler : public ISAXContentHandler
 	{
 	private:
@@ -77,7 +92,7 @@ namespace
 		}
 
 		HRESULT STDMETHODCALLTYPE startPrefixMapping(const wchar_t* pwchPrefix, int cchPrefix, const wchar_t* pwchUri,
-		                           int cchUri) override
+		                                             int cchUri) override
 		{
 			return S_OK;
 		}
@@ -87,15 +102,17 @@ namespace
 			return S_OK;
 		}
 
-		HRESULT STDMETHODCALLTYPE startElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri, const wchar_t* pwchLocalName,
-		                     int cchLocalName, const wchar_t* pwchQName, int cchQName,
-		                     ISAXAttributes* pAttributes) override
+		HRESULT STDMETHODCALLTYPE startElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri,
+		                                       const wchar_t* pwchLocalName,
+		                                       int cchLocalName, const wchar_t* pwchQName, int cchQName,
+		                                       ISAXAttributes* pAttributes) override
 		{
 			return S_OK;
 		}
 
-		HRESULT STDMETHODCALLTYPE endElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri, const wchar_t* pwchLocalName,
-		                   int cchLocalName, const wchar_t* pwchQName, int cchQName) override
+		HRESULT STDMETHODCALLTYPE endElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri,
+		                                     const wchar_t* pwchLocalName,
+		                                     int cchLocalName, const wchar_t* pwchQName, int cchQName) override
 		{
 			return S_OK;
 		}
@@ -110,8 +127,9 @@ namespace
 			return S_OK;
 		}
 
-		HRESULT STDMETHODCALLTYPE processingInstruction(const wchar_t* pwchTarget, int cchTarget, const wchar_t* pwchData,
-		                              int cchData) override
+		HRESULT STDMETHODCALLTYPE processingInstruction(const wchar_t* pwchTarget, int cchTarget,
+		                                                const wchar_t* pwchData,
+		                                                int cchData) override
 		{
 			return S_OK;
 		}
@@ -154,9 +172,10 @@ namespace
 			return E_FAIL;
 		}
 
-		HRESULT STDMETHODCALLTYPE startElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri, const wchar_t* pwchLocalName,
-		                     int cchLocalName, const wchar_t* pwchQName, int cchQName,
-		                     ISAXAttributes* pAttributes) override
+		HRESULT STDMETHODCALLTYPE startElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri,
+		                                       const wchar_t* pwchLocalName,
+		                                       int cchLocalName, const wchar_t* pwchQName, int cchQName,
+		                                       ISAXAttributes* pAttributes) override
 		{
 			if (m_status.empty())
 				return E_FAIL;
@@ -166,6 +185,20 @@ namespace
 				if (wcsncmp(pwchLocalName, L"ConfigFile", cchLocalName) == 0)
 				{
 					m_status.emplace_back(ElementType::RootElement);
+					const wchar_t* attrValue;
+					int attrLength;
+					if (SUCCEEDED(pAttributes->getValueFromName(L"", 0, L"wmiPollInterval", 15, &attrValue, &attrLength)))
+					{
+						try
+						{
+							m_config->wmiPollInterval = wcstou32(attrValue, attrLength);
+						}
+						catch (...)
+						{
+							// don't let exceptions travel across dll
+							return E_FAIL;
+						}
+					}
 				}
 				else
 				{
@@ -200,8 +233,9 @@ namespace
 			return S_OK;
 		}
 
-		HRESULT STDMETHODCALLTYPE endElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri, const wchar_t* pwchLocalName,
-		                   int cchLocalName, const wchar_t* pwchQName, int cchQName) override
+		HRESULT STDMETHODCALLTYPE endElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri,
+		                                     const wchar_t* pwchLocalName,
+		                                     int cchLocalName, const wchar_t* pwchQName, int cchQName) override
 		{
 			if (m_status.empty())
 				return E_FAIL;
@@ -283,21 +317,6 @@ namespace
 		std::vector<ElementType> m_status;
 
 	public:
-		static uint32_t wcstou32(const wchar_t* str, int length)
-		{
-			uint64_t ret = 0;
-			for (int i = 0; i < length; ++i)
-			{
-				if (str[i] > L'9' || str[i] < L'0')
-					throw std::out_of_range("unexpected character in numeric string");
-				ret *= 10;
-				ret += str[i] - L'0';
-				if (ret > std::numeric_limits<uint32_t>::max())
-					throw std::out_of_range("number too large");
-			}
-			return static_cast<uint32_t>(ret);
-		}
-
 		HRESULT STDMETHODCALLTYPE startDocument() override
 		{
 			m_db = std::make_unique<sfh::FontDatabase>();
@@ -315,9 +334,10 @@ namespace
 			return E_FAIL;
 		}
 
-		HRESULT STDMETHODCALLTYPE startElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri, const wchar_t* pwchLocalName,
-		                     int cchLocalName, const wchar_t* pwchQName, int cchQName,
-		                     ISAXAttributes* pAttributes) override
+		HRESULT STDMETHODCALLTYPE startElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri,
+		                                       const wchar_t* pwchLocalName,
+		                                       int cchLocalName, const wchar_t* pwchQName, int cchQName,
+		                                       ISAXAttributes* pAttributes) override
 		{
 			if (m_status.empty())
 				return E_FAIL;
@@ -345,7 +365,15 @@ namespace
 					m_db->m_fonts.back().m_path.assign(attrValue, attrLength);
 					if (FAILED(pAttributes->getValueFromName(L"", 0, L"index", 5, &attrValue, &attrLength)))
 						return E_FAIL;
-					m_db->m_fonts.back().m_index = wcstou32(attrValue, attrLength);
+					try
+					{
+						m_db->m_fonts.back().m_index = wcstou32(attrValue, attrLength);
+					}
+					catch (...)
+					{
+						// don't let exceptions travel across dll
+						return E_FAIL;
+					}
 				}
 				else
 				{
@@ -385,8 +413,9 @@ namespace
 			return S_OK;
 		}
 
-		HRESULT STDMETHODCALLTYPE endElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri, const wchar_t* pwchLocalName,
-		                   int cchLocalName, const wchar_t* pwchQName, int cchQName) override
+		HRESULT STDMETHODCALLTYPE endElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri,
+		                                     const wchar_t* pwchLocalName,
+		                                     int cchLocalName, const wchar_t* pwchQName, int cchQName) override
 		{
 			if (m_status.empty())
 				return E_FAIL;
@@ -472,8 +501,7 @@ namespace
 
 std::unique_ptr<sfh::ConfigFile> sfh::ConfigFile::ReadFromFile(const std::wstring& path)
 {
-	THROW_IF_FAILED(CoInitialize(nullptr));
-	auto uninitializeCom = wil::scope_exit([]() { CoUninitialize(); });
+	auto com = wil::CoInitializeEx();
 
 	wil::unique_variant pathVariant;
 	wil::com_ptr<IStream> stream;
@@ -497,8 +525,7 @@ std::unique_ptr<sfh::ConfigFile> sfh::ConfigFile::ReadFromFile(const std::wstrin
 
 std::unique_ptr<sfh::FontDatabase> sfh::FontDatabase::ReadFromFile(const std::wstring& path)
 {
-	THROW_IF_FAILED(CoInitialize(nullptr));
-	auto uninitializeCom = wil::scope_exit([]() { CoUninitialize(); });
+	auto com = wil::CoInitializeEx();
 
 	wil::unique_variant pathVariant;
 	wil::com_ptr<IStream> stream;
@@ -550,7 +577,9 @@ namespace sfh
 
 		wil::com_ptr<IXMLDOMElement> rootElement;
 		THROW_IF_FAILED(document->createElement(wil::make_bstr(L"ConfigFile").get(), rootElement.put()));
-
+		wil::unique_variant value;
+		InitVariantFromString(std::to_wstring(config.wmiPollInterval).c_str(), value.addressof());
+		THROW_IF_FAILED(rootElement->setAttribute(wil::make_bstr(L"wmiPollInterval").get(), value));
 		for (auto& indexFile : config.m_indexFile)
 		{
 			wil::com_ptr<IXMLDOMElement> indexFileElement;
@@ -613,8 +642,7 @@ namespace sfh
 
 void sfh::ConfigFile::WriteToFile(const std::wstring& path, const ConfigFile& config)
 {
-	THROW_IF_FAILED(CoInitialize(nullptr));
-	auto uninitializeCom = wil::scope_exit([]() { CoUninitialize(); });
+	auto com = wil::CoInitializeEx();
 
 	wil::com_ptr<IStream> stream;
 	THROW_IF_FAILED(
@@ -632,8 +660,7 @@ void sfh::ConfigFile::WriteToFile(const std::wstring& path, const ConfigFile& co
 
 void sfh::FontDatabase::WriteToFile(const std::wstring& path, const FontDatabase& db)
 {
-	THROW_IF_FAILED(CoInitialize(nullptr));
-	auto uninitializeCom = wil::scope_exit([]() { CoUninitialize(); });
+	auto com = wil::CoInitializeEx();
 
 	wil::com_ptr<IStream> stream;
 	THROW_IF_FAILED(

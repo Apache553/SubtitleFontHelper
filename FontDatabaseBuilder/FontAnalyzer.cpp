@@ -71,7 +71,7 @@ private:
 		size_t length = name.string_len / 2;
 		std::wstring ret(length, 0);
 		memcpy(ret.data(), name.string, length * sizeof(wchar_t));
-			// all x86 systems use little endian
+		// all x86 systems use little endian
 		std::transform(ret.begin(), ret.end(), ret.begin(), _byteswap_ushort);
 		return ret;
 	}

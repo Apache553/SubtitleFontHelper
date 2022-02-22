@@ -114,6 +114,9 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
+      <ModuleDefinitionFile>
+      </ModuleDefinitionFile>
+      <RandomizedBaseAddress>true</RandomizedBaseAddress>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(IntDir)exres\</AdditionalIncludeDirectories>
@@ -139,6 +142,8 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
+      <ModuleDefinitionFile>
+      </ModuleDefinitionFile>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(IntDir)exres\</AdditionalIncludeDirectories>
@@ -160,6 +165,9 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
+      <ModuleDefinitionFile>
+      </ModuleDefinitionFile>
+      <RandomizedBaseAddress>true</RandomizedBaseAddress>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(IntDir)exres\</AdditionalIncludeDirectories>
@@ -185,6 +193,8 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
+      <ModuleDefinitionFile>
+      </ModuleDefinitionFile>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(IntDir)exres\</AdditionalIncludeDirectories>

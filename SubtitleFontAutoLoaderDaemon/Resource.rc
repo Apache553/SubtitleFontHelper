@@ -52,7 +52,7 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_TRAYICON            ICON                    "tray.ico"
+IDI_TRAYICON            ICON                    "icon.ico"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -64,6 +64,7 @@ IDR_TRAYMENU MENU
 BEGIN
     POPUP "TrayIconMenu"
     BEGIN
+        MENUITEM "Reload",                      ID_TRAYICONMENU_RELOAD
         MENUITEM "Exit",                        ID_TRAYICONMENU_EXIT
     END
     POPUP "TrayIconMenuLoading"
@@ -74,7 +75,6 @@ END
 
 #endif    // Chinese (Simplified, PRC) resources
 /////////////////////////////////////////////////////////////////////////////
-
 
 
 #ifndef APSTUDIO_INVOKED
