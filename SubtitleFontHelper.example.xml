@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ConfigFile wmiPollInterval="1000">
+<IndexFile>E:\超级字体整合包 XZ\FontIndex.xml</IndexFile>
+<MonitorProcess>mpc-hc64_nvo.exe</MonitorProcess>
+<MonitorProcess>mpc-hc_nvo.exe</MonitorProcess>
+</ConfigFile>
