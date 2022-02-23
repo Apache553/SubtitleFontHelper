@@ -187,7 +187,8 @@ namespace
 					m_status.emplace_back(ElementType::RootElement);
 					const wchar_t* attrValue;
 					int attrLength;
-					if (SUCCEEDED(pAttributes->getValueFromName(L"", 0, L"wmiPollInterval", 15, &attrValue, &attrLength)))
+					if (SUCCEEDED(
+						pAttributes->getValueFromName(L"", 0, L"wmiPollInterval", 15, &attrValue, &attrLength)))
 					{
 						try
 						{

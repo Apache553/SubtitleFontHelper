@@ -33,5 +33,7 @@ namespace sfh
 
 		void LogDllInjectProcessSuccess(uint32_t processId);
 		void LogDllInjectProcessFailure(uint32_t processId, const wchar_t* reason);
+
+		void LogDllQueryNoResult(uint32_t processId, uint32_t threadId, const wchar_t* requestName);
 	};
 }

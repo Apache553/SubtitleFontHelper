@@ -28,6 +28,9 @@
           <event symbol="DllInjectProcessFailure" value="7" version="0" channel="SubtitleFontHelper"
                  level="win:Error" template="DllInjectProcessFailureTemplate"
                  message="$(string.SubtitleFontHelper.event.DllInjectProcessFailure)" />
+          <event symbol="DllQueryNoResult" value="8" version="0" channel="SubtitleFontHelper"
+                 level="win:Warning" template="DllQueryNoResultTemplate"
+                 message="$(string.SubtitleFontHelper.event.DllQueryNoResult)" />
         </events>
         <channels>
           <channel
@@ -68,6 +71,11 @@
             <data name="processId" inType="win:UInt32" outType="win:PID" />
             <data name="reason" inType="win:UnicodeString" outType="xs:string" />
           </template>
+          <template tid="DllQueryNoResultTemplate">
+            <data name="processId" inType="win:UInt32" outType="win:PID" />
+            <data name="threadId" inType="win:UInt32" outType="win:TID" />
+            <data name="requestName" inType="win:UnicodeString" outType="xs:string" />
+          </template>
         </templates>
       </provider>
     </events>
@@ -84,6 +92,7 @@
         <string id="SubtitleFontHelper.event.DaemonBumpVersion" value="Bumped version from %1 to %2." />
         <string id="SubtitleFontHelper.event.DllInjectProcessSuccess" value="InjectProcess(%1) succeeded!" />
         <string id="SubtitleFontHelper.event.DllInjectProcessFailure" value="InjectProcess(%1) failed: %2" />
+        <string id="SubtitleFontHelper.event.DllQueryNoResult" value="Query succeeded. pid: %1, tid: %2 requestName: %3 No font available." />
       </stringTable>
     </resources>
   </localization>

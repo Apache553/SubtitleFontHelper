@@ -205,7 +205,14 @@ void sfh::QueryAndLoad(const wchar_t* str)
 		{
 			logData.push_back(s.c_str());
 		}
-		EventLog::GetInstance().LogDllQuerySuccess(GetCurrentProcessId(), GetCurrentThreadId(), str, logData);
+		if (logData.empty())
+		{
+			EventLog::GetInstance().LogDllQueryNoResult(GetCurrentProcessId(), GetCurrentThreadId(), str);
+		}
+		else
+		{
+			EventLog::GetInstance().LogDllQuerySuccess(GetCurrentProcessId(), GetCurrentThreadId(), str, logData);
+		}
 	}
 	catch (std::exception& e)
 	{

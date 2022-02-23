@@ -68,3 +68,8 @@ void sfh::EventLog::LogDllInjectProcessFailure(uint32_t processId, const wchar_t
 {
 	EventWriteDllInjectProcessFailure(processId, reason);
 }
+
+void sfh::EventLog::LogDllQueryNoResult(uint32_t processId, uint32_t threadId, const wchar_t* requestName)
+{
+	EventWriteDllQueryNoResult(processId, threadId, requestName);
+}

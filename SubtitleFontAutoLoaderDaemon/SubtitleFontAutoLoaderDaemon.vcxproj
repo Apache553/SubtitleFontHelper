@@ -191,7 +191,6 @@
     <ClCompile Include="TrayIcon.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="eventTEMP.BIN" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
