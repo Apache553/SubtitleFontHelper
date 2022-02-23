@@ -170,6 +170,9 @@ void sfh::QueryAndLoad(const wchar_t* str)
 	// strip GDI added prefix '@'
 	if (*str == L'@')
 		++str;
+	// skip empty string
+	if (*str == L'\0')
+		return;
 	if (!QueryCache::GetInstance().IsQueryNeeded(str))
 		return;
 	try
@@ -244,6 +247,8 @@ void sfh::QueryAndLoad(const wchar_t* str)
 void sfh::QueryAndLoad(const char* str)
 {
 	if (str == nullptr)
+		return;
+	if (*str == '\0')
 		return;
 	try
 	{
