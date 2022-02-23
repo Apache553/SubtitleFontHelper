@@ -167,6 +167,9 @@ void sfh::QueryAndLoad(const wchar_t* str)
 {
 	if (str == nullptr)
 		return;
+	// strip GDI added prefix '@'
+	if (*str == L'@')
+		++str;
 	if (!QueryCache::GetInstance().IsQueryNeeded(str))
 		return;
 	try

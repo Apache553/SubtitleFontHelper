@@ -117,7 +117,7 @@ namespace sfh
 				case MessageType::Exit:
 					return 0;
 				case MessageType::Reload:
-					OnReload();
+					OnInit(cmdline);
 					break;
 				default:
 					MarkUnreachable();
@@ -174,11 +174,6 @@ namespace sfh
 		void OnException(std::exception_ptr exception)
 		{
 			std::rethrow_exception(exception);
-		}
-
-		void OnReload()
-		{
-			OnInit({});
 		}
 	};
 
