@@ -1,5 +1,6 @@
 #include "pch.h"
 
+#include "Common.h"
 #include "ProcessMonitor.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -134,7 +135,7 @@ private:
 				wil::com_ptr<IWbemClassObject> object(objects[i]);
 				try
 				{
-					HandleProcessCreation(object.get());
+					HandleProcessCreation(object.get(), wbemService.get());
 				}
 				catch (...)
 				{
@@ -143,7 +144,7 @@ private:
 		}
 	}
 
-	void HandleProcessCreation(IWbemClassObject* object)
+	void HandleProcessCreation(IWbemClassObject* object, IWbemServices* service)
 	{
 		wil::unique_variant targetInstanceVariant;
 		THROW_IF_FAILED(object->Get(L"TargetInstance", 0, targetInstanceVariant.addressof(), nullptr, nullptr));
@@ -171,6 +172,27 @@ private:
 					break;
 				}
 			}
+		}
+
+		// check the process's owner
+		if (!filteredOut)
+		{
+			wil::unique_variant objectPath;
+			THROW_IF_FAILED(targetInstance->Get(L"__PATH", 0, objectPath.addressof(), nullptr, nullptr));
+			wil::com_ptr<IWbemClassObject> outputParams;
+			THROW_IF_FAILED(service->ExecMethod(
+				objectPath.bstrVal,
+				wil::make_bstr(L"GetOwnerSid").get(),
+				0,
+				nullptr,
+				nullptr,
+				outputParams.put(),
+				nullptr));
+			wil::unique_variant sidString;
+			THROW_IF_FAILED(outputParams->Get(L"Sid", 0, sidString.addressof(), nullptr, nullptr));
+			auto selfSid = GetCurrentProcessUserSid();
+			if (wcscmp(sidString.bstrVal, selfSid.c_str()) != 0)
+				filteredOut = true;
 		}
 
 		if (!filteredOut)
