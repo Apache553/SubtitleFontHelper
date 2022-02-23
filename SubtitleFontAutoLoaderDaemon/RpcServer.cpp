@@ -109,7 +109,7 @@ private:
 			PIPE_UNLIMITED_INSTANCES,
 			4096,
 			4096,
-			1000,
+			0,
 			nullptr
 		);
 		THROW_LAST_ERROR_IF_NULL(pipe.get());

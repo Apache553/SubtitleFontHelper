@@ -181,9 +181,25 @@ void sfh::QueryAndLoad(const wchar_t* str)
 			OPEN_EXISTING,
 			0,
 			nullptr));
-		THROW_LAST_ERROR_IF(!pipe.is_valid());
+		if (!pipe.is_valid())
+		{
+			if (GetLastError() == ERROR_PIPE_BUSY)
+			{
+				// wait previous request finish
+				THROW_LAST_ERROR_IF(WaitNamedPipeW(pipeName.c_str(), NMPWAIT_USE_DEFAULT_WAIT) == FALSE);
+				pipe.reset(CreateFileW(
+					pipeName.c_str(),
+					GENERIC_READ | GENERIC_WRITE,
+					0,
+					nullptr,
+					OPEN_EXISTING,
+					0,
+					nullptr));
+			}
+			THROW_LAST_ERROR_IF(!pipe.is_valid());
+		}
 
-		uint32_t length = static_cast<uint32_t>(wcslen(str));
+		auto length = static_cast<uint32_t>(wcslen(str));
 		WritePipe(pipe.get(), &length, sizeof(uint32_t));
 		WritePipe(pipe.get(), str, sizeof(wchar_t) * length);
 

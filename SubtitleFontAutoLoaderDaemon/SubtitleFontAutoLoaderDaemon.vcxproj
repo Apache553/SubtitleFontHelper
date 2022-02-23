@@ -197,7 +197,6 @@
     <ClInclude Include="Common.h" />
     <ClInclude Include="EventLog.h" />
     <ClInclude Include="IDaemon.h" />
-    <ClInclude Include="Options.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ProcessMonitor.h" />
     <ClInclude Include="QueryService.h" />

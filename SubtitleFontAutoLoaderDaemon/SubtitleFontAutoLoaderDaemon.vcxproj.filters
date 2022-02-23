@@ -50,9 +50,6 @@
     <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Options.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="TrayIcon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
