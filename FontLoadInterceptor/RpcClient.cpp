@@ -165,18 +165,18 @@ namespace sfh
 
 void sfh::QueryAndLoad(const wchar_t* str)
 {
-	if (str == nullptr)
-		return;
-	// strip GDI added prefix '@'
-	if (*str == L'@')
-		++str;
-	// skip empty string
-	if (*str == L'\0')
-		return;
-	if (!QueryCache::GetInstance().IsQueryNeeded(str))
-		return;
 	try
 	{
+		if (str == nullptr)
+			return;
+		// strip GDI added prefix '@'
+		if (*str == L'@')
+			++str;
+		// skip empty string
+		if (*str == L'\0')
+			return;
+		if (!QueryCache::GetInstance().IsQueryNeeded(str))
+			return;
 		std::wstring pipeName = LR"_(\\.\pipe\SubtitleFontAutoLoaderRpc-)_";
 		pipeName += GetCurrentProcessUserSid();
 		wil::unique_hfile pipe(CreateFileW(

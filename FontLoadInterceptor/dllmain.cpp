@@ -17,41 +17,47 @@ BOOL APIENTRY DllMain(HMODULE hModule,
                       LPVOID lpReserved
 )
 {
-	switch (ul_reason_for_call)
+	try
 	{
-	case DLL_PROCESS_ATTACH:
-		setlocale(LC_ALL, "");
-		if (sfh::IsDetourNeeded())
+		switch (ul_reason_for_call)
 		{
-			wil::unique_handle hThread(CreateThread(
-				nullptr,
-				0,
-				DelayedAttach,
-				nullptr,
-				0,
-				nullptr));
-			if (!hThread.is_valid())
-				return FALSE;
+		case DLL_PROCESS_ATTACH:
+			if (sfh::IsDetourNeeded())
+			{
+				wil::unique_handle hThread(CreateThread(
+					nullptr,
+					0,
+					DelayedAttach,
+					nullptr,
+					0,
+					nullptr));
+				if (!hThread.is_valid())
+					return FALSE;
+			}
+			break;
+		case DLL_THREAD_ATTACH:
+			if (attachThreadId == GetCurrentThreadId())
+			{
+				if (!sfh::AttachDetour())
+					return FALSE;
+				sfh::EventLog::GetInstance().LogDllAttach(GetCurrentProcessId());
+			}
+			break;
+		case DLL_THREAD_DETACH:
+			break;
+		case DLL_PROCESS_DETACH:
+			if (sfh::IsDetourNeeded())
+			{
+				sfh::DetachDetour();
+			}
+			break;
 		}
-		break;
-	case DLL_THREAD_ATTACH:
-		if (attachThreadId == GetCurrentThreadId())
-		{
-			if (!sfh::AttachDetour())
-				return FALSE;
-			sfh::EventLog::GetInstance().LogDllAttach(GetCurrentProcessId());
-		}
-		break;
-	case DLL_THREAD_DETACH:
-		break;
-	case DLL_PROCESS_DETACH:
-		if (sfh::IsDetourNeeded())
-		{
-			sfh::DetachDetour();
-		}
-		break;
+		return TRUE;
 	}
-	return TRUE;
+	catch (...)
+	{
+		return FALSE;
+	}
 }
 
 DWORD WINAPI DummyThread(LPVOID lpThreadParameter)
@@ -109,6 +115,8 @@ extern "C" {
 #endif
 void CALLBACK InjectProcess(HWND hWnd, HINSTANCE hInst, LPSTR lpszCmdLine, int nCmdShow)
 {
+	_configthreadlocale(_ENABLE_PER_THREAD_LOCALE);
+	setlocale(LC_ALL, "");
 	DWORD processId = 0;
 	try
 	{

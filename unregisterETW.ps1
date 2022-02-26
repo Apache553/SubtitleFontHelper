@@ -9,5 +9,5 @@ if($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administr
     echo "Done."
     Start-Sleep -Seconds 3
 }else{
-    Start-Process "powershell" -ArgumentList "-File",$scriptpath -Verb runAs 
+    Start-Process "powershell.exe" -ArgumentList "-File","`"$scriptpath`"","-ExecutionPolicy","Bypass" -Verb runAs 
 }
