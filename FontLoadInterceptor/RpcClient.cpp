@@ -14,6 +14,9 @@
 #undef max
 
 #include "EventLog.h"
+#include "Detour.h"
+
+#include "FontQuery.pb.h"
 
 namespace sfh
 {
@@ -23,7 +26,7 @@ namespace sfh
 		PTOKEN_USER user;
 		std::unique_ptr<char[]> buffer;
 		DWORD returnLength;
-		wil::unique_hlocal_string ret;;
+		wil::unique_hlocal_string ret;
 		if (GetTokenInformation(
 			hToken,
 			TokenUser,
@@ -92,16 +95,21 @@ namespace sfh
 			return instance;
 		}
 
-		bool IsQueryNeeded(const wchar_t* str)
+		void CheckNewVerison()
 		{
-			if (!m_good)return true;
-			std::lock_guard lg(m_lock);
 			uint32_t newVerison = InterlockedCompareExchange(m_versionMem.get(), 0, 0);
 			if (newVerison != m_lastKnownVersion)
 			{
 				m_lastKnownVersion = newVerison;
 				m_cache.clear();
 			}
+		}
+
+		bool IsQueryNeeded(const wchar_t* str)
+		{
+			if (!m_good)return true;
+			std::lock_guard lg(m_lock);
+			CheckNewVerison();
 			if (m_cache.find(str) != m_cache.end())
 				return false;
 			return true;
@@ -111,12 +119,7 @@ namespace sfh
 		{
 			if (!m_good)return;
 			std::lock_guard lg(m_lock);
-			uint32_t newVerison = InterlockedCompareExchange(m_versionMem.get(), 0, 0);
-			if (newVerison != m_lastKnownVersion)
-			{
-				m_lastKnownVersion = newVerison;
-				m_cache.clear();
-			}
+			CheckNewVerison();
 			m_cache.emplace(str);
 		}
 	};
@@ -161,22 +164,59 @@ namespace sfh
 			ret.pop_back();
 		return ret;
 	}
-}
 
-void sfh::QueryAndLoad(const wchar_t* str)
-{
-	try
+	std::string WideToUtf8String(const std::wstring& wStr)
 	{
-		if (str == nullptr)
-			return;
-		// strip GDI added prefix '@'
-		if (*str == L'@')
-			++str;
-		// skip empty string
-		if (*str == L'\0')
-			return;
-		if (!QueryCache::GetInstance().IsQueryNeeded(str))
-			return;
+		std::string ret;
+		const int length = WideCharToMultiByte(
+			CP_UTF8,
+			WC_ERR_INVALID_CHARS,
+			wStr.c_str(),
+			static_cast<int>(wStr.size()),
+			nullptr,
+			0,
+			nullptr,
+			nullptr);
+		if (length <= 0)
+			throw std::runtime_error("WideCharToMultiByte failed");
+		ret.resize(length);
+		WideCharToMultiByte(
+			CP_UTF8,
+			WC_ERR_INVALID_CHARS,
+			wStr.c_str(),
+			static_cast<int>(wStr.size()),
+			ret.data(),
+			length,
+			nullptr,
+			nullptr);
+		return ret;
+	}
+
+	std::wstring Utf8ToWideString(const std::string& str)
+	{
+		std::wstring ret;
+		const int length = MultiByteToWideChar(
+			CP_UTF8,
+			MB_ERR_INVALID_CHARS,
+			str.c_str(),
+			static_cast<int>(str.size()),
+			nullptr,
+			0);
+		if (length <= 0)
+			throw std::runtime_error("MultiByteToWideChar failed");
+		ret.resize(length);
+		MultiByteToWideChar(
+			CP_UTF8,
+			MB_ERR_INVALID_CHARS,
+			str.c_str(),
+			static_cast<int>(str.size()),
+			ret.data(),
+			length);
+		return ret;
+	}
+
+	FontQueryResponse QueryFont(const wchar_t* str)
+	{
 		std::wstring pipeName = LR"_(\\.\pipe\SubtitleFontAutoLoaderRpc-)_";
 		pipeName += GetCurrentProcessUserSid();
 		wil::unique_hfile pipe(CreateFileW(
@@ -205,57 +245,136 @@ void sfh::QueryAndLoad(const wchar_t* str)
 			THROW_LAST_ERROR_IF(!pipe.is_valid());
 		}
 
-		auto length = static_cast<uint32_t>(wcslen(str));
-		WritePipe(pipe.get(), &length, sizeof(uint32_t));
-		WritePipe(pipe.get(), str, sizeof(wchar_t) * length);
+		FontQueryRequest request;
+		request.set_version(1);
+		request.set_querystring(WideToUtf8String(str));
+		std::ostringstream oss;
+		request.SerializeToOstream(&oss);
+		std::string requestBuffer = std::move(oss).str();
 
-		uint32_t responseCount;
-		ReadPipe(pipe.get(), &responseCount, sizeof(uint32_t));
-		std::vector<std::wstring> paths;
-		for (uint32_t i = 0; i < responseCount; ++i)
-		{
-			uint32_t pathLength;
-			ReadPipe(pipe.get(), &pathLength, sizeof(uint32_t));
-			std::wstring path(pathLength, 0);
-			ReadPipe(pipe.get(), path.data(), sizeof(wchar_t) * pathLength);
-			AddFontResourceExW(path.data(), FR_PRIVATE, 0);
-			paths.emplace_back(std::move(path));
-		}
-		QueryCache::GetInstance().AddToCache(str);
-		std::vector<const wchar_t*> logData;
-		for (auto& s : paths)
-		{
-			logData.push_back(s.c_str());
-		}
-		if (logData.empty())
-		{
-			EventLog::GetInstance().LogDllQueryNoResult(GetCurrentProcessId(), GetCurrentThreadId(), str);
-		}
-		else
-		{
-			EventLog::GetInstance().LogDllQuerySuccess(GetCurrentProcessId(), GetCurrentThreadId(), str, logData);
-		}
-	}
-	catch (std::exception& e)
-	{
-		EventLog::GetInstance().LogDllQueryFailure(GetCurrentProcessId(), GetCurrentThreadId(), str,
-		                                           AnsiStringToWideString(e.what()).c_str());
-		// ignore exceptions
-	}
-}
+		auto requestLength = static_cast<uint32_t>(requestBuffer.size());
+		WritePipe(pipe.get(), &requestLength, sizeof(uint32_t));
+		WritePipe(pipe.get(), requestBuffer.data(), static_cast<DWORD>(requestLength));
 
-void sfh::QueryAndLoad(const char* str)
-{
-	if (str == nullptr)
-		return;
-	if (*str == '\0')
-		return;
-	try
-	{
-		auto wstr = AnsiStringToWideString(str);
-		QueryAndLoad(wstr.c_str());
+		uint32_t responseLength;
+		ReadPipe(pipe.get(), &responseLength, sizeof(uint32_t));
+		std::vector<char> responseBuffer(responseLength);
+		ReadPipe(pipe.get(), responseBuffer.data(), responseLength);
+
+		FontQueryResponse response;
+		if (!response.ParseFromArray(responseBuffer.data(), responseLength))
+			throw std::runtime_error("bad response");
+
+		return response;
 	}
-	catch (...)
+
+	void TryLoad(const wchar_t* query, const FontQueryResponse& response)
 	{
+		struct EnumInfo
+		{
+			const FontQueryResponse* response;
+			std::vector<char> maskedFace;
+		};
+		HDC hDC = GetDC(HWND_DESKTOP);
+		LOGFONTW lf{};
+		wcscpy_s(lf.lfFaceName, LF_FACESIZE, query);
+
+		EnumInfo enumInfo;
+		enumInfo.response = &response;
+		enumInfo.maskedFace.assign(response.fonts_size(), 0);
+
+		Detour::Original::EnumFontFamiliesExW(
+			hDC, &lf, [](const LOGFONT* lpelfe, const TEXTMETRIC* lpntme, DWORD dwFontType, LPARAM lParam)-> int
+			{
+				EnumInfo& info = *reinterpret_cast<EnumInfo*>(lParam);
+				auto faceName = WideToUtf8String(lpelfe->lfFaceName);
+				for (int i = 0; i < info.response->fonts_size(); ++i)
+				{
+					if (info.maskedFace[i])continue;
+					auto& face = info.response->fonts()[i];
+					if ((std::ranges::find(face.familyname(), faceName) != face.familyname().end()
+							|| face.ispsoutline()
+							&& std::ranges::find(face.postscriptname(), faceName) != face.postscriptname().end()
+							|| std::ranges::find(face.gdifullname(), faceName) != face.
+							gdifullname().end())
+						&& (!!face.oblique() == !!lpelfe->lfItalic && face.weight() == lpelfe->lfWeight)
+					)
+					{
+						info.maskedFace[i] = 1;
+					}
+				}
+				return TRUE;
+			}, reinterpret_cast<LPARAM>(&enumInfo), 0);
+		for (int i = 0; i < response.fonts_size(); ++i)
+		{
+			if (enumInfo.maskedFace[i])continue;
+			auto path = Utf8ToWideString(response.fonts()[i].path());
+			AddFontResourceExW(path.c_str(), FR_PRIVATE, nullptr);
+			EventLog::GetInstance().LogDllLoadFont(GetCurrentProcessId(), GetCurrentThreadId(), path.c_str());
+		}
+	}
+
+	void QueryAndLoad(const wchar_t* query)
+	{
+		try
+		{
+			if (query == nullptr)
+				return;
+			// strip GDI added prefix '@'
+			if (*query == L'@')
+				++query;
+			// skip empty string
+			if (*query == L'\0')
+				return;
+			if (!QueryCache::GetInstance().IsQueryNeeded(query))
+				return;
+			auto response = QueryFont(query);
+
+			std::vector<std::wstring> paths;
+			for (int i = 0; i < response.fonts_size(); ++i)
+			{
+				auto& font = response.fonts()[i];
+				auto path = Utf8ToWideString(font.path());
+				paths.emplace_back(std::move(path));
+			}
+			QueryCache::GetInstance().AddToCache(query);
+			std::vector<const wchar_t*> logData;
+			for (auto& s : paths)
+			{
+				logData.push_back(s.c_str());
+			}
+			if (logData.empty())
+			{
+				EventLog::GetInstance().LogDllQueryNoResult(GetCurrentProcessId(), GetCurrentThreadId(), query);
+			}
+			else
+			{
+				EventLog::GetInstance().LogDllQuerySuccess(GetCurrentProcessId(), GetCurrentThreadId(), query, logData);
+			}
+
+			TryLoad(query, response);
+		}
+		catch (std::exception& e)
+		{
+			EventLog::GetInstance().LogDllQueryFailure(GetCurrentProcessId(), GetCurrentThreadId(), query,
+			                                           AnsiStringToWideString(e.what()).c_str());
+			// ignore exceptions
+		}
+	}
+
+	void QueryAndLoad(const char* query)
+	{
+		if (query == nullptr)
+			return;
+		if (*query == '\0')
+			return;
+		try
+		{
+			auto wstr = AnsiStringToWideString(query);
+			QueryAndLoad(wstr.c_str());
+		}
+		catch (...)
+		{
+		}
 	}
 }

@@ -4,12 +4,14 @@
 #include "IDaemon.h"
 #include "QueryService.h"
 
+#include "FontQuery.pb.h"
+
 namespace sfh
 {
 	class IRpcRequestHandler
 	{
 	public:
-		virtual std::vector<std::reference_wrapper<std::wstring>> HandleRequest(const std::wstring& str) = 0;
+		virtual FontQueryResponse HandleRequest(const FontQueryRequest& request) = 0;
 	};
 
 	class RpcServer

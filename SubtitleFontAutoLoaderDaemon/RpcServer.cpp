@@ -120,31 +120,24 @@ private:
 	{
 		uint32_t requestLength;
 		ReadPipe(pipe.get(), &requestLength, sizeof(uint32_t), overlapped);
-		std::wstring request(requestLength, 0);
-		ReadPipe(pipe.get(), request.data(), sizeof(wchar_t) * requestLength, overlapped);
+		std::vector<char> requestBuffer(requestLength);
+		ReadPipe(pipe.get(), requestBuffer.data(), requestLength, overlapped);
 
-		auto result = m_handler->HandleRequest(request);
+		FontQueryRequest request;
+		if (!request.ParseFromArray(requestBuffer.data(), requestLength))
+			return;
 
-		size_t responseSize = sizeof(uint32_t);
-		for (auto& response : result)
-		{
-			responseSize += sizeof(uint32_t);
-			responseSize += sizeof(wchar_t) * response.get().size();
-		}
-		std::unique_ptr<char[]> buffer = std::make_unique<char[]>(responseSize);
-		char* bufferPointer = buffer.get();
-		uint32_t responseCount = static_cast<uint32_t>(result.size());
-		memcpy(bufferPointer, &responseCount, sizeof(uint32_t));
-		bufferPointer += sizeof(uint32_t);
-		for (auto& response : result)
-		{
-			uint32_t responseLength = static_cast<uint32_t>(response.get().size());
-			memcpy(bufferPointer, &responseLength, sizeof(uint32_t));
-			bufferPointer += sizeof(uint32_t);
-			memcpy(bufferPointer, response.get().data(), sizeof(wchar_t) * response.get().size());
-			bufferPointer += sizeof(wchar_t) * response.get().size();
-		}
-		WritePipe(pipe.get(), buffer.get(), static_cast<DWORD>(responseSize), overlapped);
+		if (request.version() != 1)
+			return;
+
+		auto response = m_handler->HandleRequest(request);
+
+		std::ostringstream oss;
+		response.SerializeToOstream(&oss);
+		std::string buffer = std::move(oss).str();
+		auto responseLength = static_cast<uint32_t>(buffer.size());
+		WritePipe(pipe.get(), &responseLength, sizeof(uint32_t), overlapped);
+		WritePipe(pipe.get(), buffer.data(), static_cast<DWORD>(responseLength), overlapped);
 	}
 
 	static void ReadPipe(HANDLE pipe, void* dst, DWORD size, OVERLAPPED* overlapped)

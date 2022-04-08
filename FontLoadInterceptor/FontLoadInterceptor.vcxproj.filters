@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Proto">
+      <UniqueIdentifier>{782f0d76-bca0-4bc0-8dba-1a79996d307f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -53,6 +56,9 @@
     <ClCompile Include="EventLog.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FontQuery.pb.cpp">
+      <Filter>Proto</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -65,6 +71,9 @@
   <ItemGroup>
     <CustomBuild Include="..\event.man">
       <Filter>Resource Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\SharedIncludes\FontQuery.proto">
+      <Filter>Proto</Filter>
     </CustomBuild>
   </ItemGroup>
 </Project>

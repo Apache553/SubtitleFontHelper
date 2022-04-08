@@ -2,6 +2,6 @@
 
 namespace sfh
 {
-	void QueryAndLoad(const wchar_t* str);
-	void QueryAndLoad(const char* str);
+	void QueryAndLoad(const wchar_t* query);
+	void QueryAndLoad(const char* query);
 }

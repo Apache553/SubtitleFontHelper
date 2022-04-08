@@ -13,11 +13,14 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <pathcch.h>
 #include <strsafe.h>
 #include <shellapi.h>
 #include <wil/win32_helpers.h>
 
 #include "event.h"
+
+#pragma comment(lib, "pathcch.lib")
 
 namespace sfh
 {
@@ -144,9 +147,8 @@ namespace sfh
 			}
 			m_service = std::make_unique<Service>();
 			auto selfPathPtr = wil::GetModuleFileNameW<wil::unique_hlocal_string>();
+			PathCchRemoveFileSpec(selfPathPtr.get(), wcslen(selfPathPtr.get()) + 1);
 			std::wstring configPath = selfPathPtr.get();
-			size_t lastSlash = configPath.rfind(L'\\');
-			if (lastSlash != std::wstring::npos) configPath.erase(lastSlash);
 			configPath += L"\\SubtitleFontHelper.xml";
 			auto cfg = ConfigFile::ReadFromFile(configPath);
 

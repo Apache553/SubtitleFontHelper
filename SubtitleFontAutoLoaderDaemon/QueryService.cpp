@@ -242,9 +242,8 @@ public:
 
 	void UpdateVerison()
 	{
-		auto oldValue = InterlockedCompareExchange(m_versionMem.get(), 0, 0);
 		auto newValue = InterlockedIncrement(m_versionMem.get());
-		EventLog::GetInstance().LogDaemonBumpVersion(oldValue, newValue);
+		EventLog::GetInstance().LogDaemonBumpVersion(newValue - 1, newValue);
 	}
 
 	void Load(std::vector<std::unique_ptr<FontDatabase>>&& dbs)
@@ -281,30 +280,70 @@ public:
 		UpdateVerison();
 	}
 
-	std::vector<std::reference_wrapper<std::wstring>> HandleRequest(const std::wstring& str) override
+	static void AppendFontFace(FontQueryResponse& response, const std::vector<FontDatabase::FontFaceElement*>& faces,
+	                           std::vector<std::pair<const wchar_t*, uint32_t>>& dedup)
+	{
+		for (auto face : faces)
+		{
+			auto unique = std::make_pair(face->m_path.c_str(), face->m_index);
+			if (std::find(dedup.begin(), dedup.end(), unique) != dedup.end())
+				continue;
+			dedup.push_back(unique);
+			auto font = response.add_fonts();
+			for (auto name : face->m_names)
+			{
+				switch (name.m_type)
+				{
+				case FontDatabase::FontFaceElement::NameElement::Win32FamilyName:
+					font->add_familyname(WideToUtf8String(name.m_name));
+					break;
+				case FontDatabase::FontFaceElement::NameElement::FullName:
+					font->add_gdifullname(WideToUtf8String(name.m_name));
+					break;
+				case FontDatabase::FontFaceElement::NameElement::PostScriptName:
+					font->add_postscriptname(WideToUtf8String(name.m_name));
+					break;
+				}
+			}
+			font->set_path(WideToUtf8String(face->m_path));
+			font->set_weight(face->m_weight);
+			font->set_oblique(face->m_oblique);
+			font->set_ispsoutline(face->m_psOutline);
+		}
+	}
+
+	FontQueryResponse HandleRequest(const FontQueryRequest& request) override
 	{
 		std::lock_guard lg(m_accessLock);
-		std::vector<std::reference_wrapper<std::wstring>> ret;
-		std::vector<FontDatabase::FontFaceElement*> tmp;
+		FontQueryResponse ret;
+		std::wstring queryString = Utf8ToWideString(request.querystring());
 		bool doTruncated = false;
 		// enable truncated query for GDI LOGFONT::lfFaceName's 31 wchar_t limit
-		if (str.size() == 31)
+		if (queryString.size() == 31)
 			doTruncated = true;
-		auto family = m_win32FamilyName.QueryEntry(str.c_str(), doTruncated);
-		auto fullname = m_fullName.QueryEntry(str.c_str(), doTruncated);
-		auto postscript = m_postScriptName.QueryEntry(str.c_str(), doTruncated);
-		tmp.reserve(family.size() + fullname.size() + postscript.size());
-		tmp.insert(tmp.end(), family.begin(), family.end());
-		tmp.insert(tmp.end(), fullname.begin(), fullname.end());
-		tmp.insert(tmp.end(), postscript.begin(), postscript.end());
-		// deduplicate, preserve original order
-		for (auto item : tmp)
+		std::vector<std::pair<const wchar_t*, uint32_t>> dedup;
+
+		ret.set_version(1);
+
+		auto family = m_win32FamilyName.QueryEntry(queryString.c_str(), doTruncated);
+		if (!family.empty())
 		{
-			if (std::find_if(ret.begin(), ret.end(),
-			                 [&](auto& path) { return path.get() == item->m_path; }) != ret.end())
-				continue;
-			ret.emplace_back(std::ref(item->m_path));
+			// if it's a valid family name, return the list
+			AppendFontFace(ret, family, dedup);
+			return ret;
 		}
+		auto postscript = m_postScriptName.QueryEntry(queryString.c_str(), doTruncated);
+		std::erase_if(postscript, [](FontDatabase::FontFaceElement* element)
+		{
+			return element->m_psOutline != 1;
+		});
+		auto fullname = m_fullName.QueryEntry(queryString.c_str(), doTruncated);
+		std::erase_if(fullname, [](FontDatabase::FontFaceElement* element)
+		{
+			return element->m_psOutline == 1;
+		});
+		AppendFontFace(ret, postscript, dedup);
+		AppendFontFace(ret, fullname, dedup);
 		return ret;
 	}
 

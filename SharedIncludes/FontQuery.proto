@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package sfh;
+
+message FontFace 
+{
+	string path = 1;
+	uint32 weight = 2;
+	uint32 oblique = 3;
+	uint32 isPSOutline = 4;
+	repeated string familyName = 5;
+	repeated string gdiFullName = 6;
+	repeated string postScriptName = 7;
+}
+
+message FontQueryRequest
+{
+	uint32 version = 1;
+	string queryString = 2;
+}
+
+message FontQueryResponse
+{
+	uint32 version = 1;
+	repeated FontFace fonts = 2;
+}

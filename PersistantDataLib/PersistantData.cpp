@@ -335,6 +335,37 @@ namespace
 			return E_FAIL;
 		}
 
+		template <typename T, size_t N>
+		HRESULT RetrieveAttribute(ISAXAttributes* pAttributes, T& ptr, std::wstring T::* mptr, const wchar_t (&name)[N])
+		{
+			const wchar_t* attrValue;
+			int attrLength;
+			assert(mptr != nullptr);
+			assert(pAttributes != nullptr);
+			RETURN_HR_IF(E_FAIL, FAILED(pAttributes->getValueFromName(L"", 0, name, N - 1, &attrValue, &attrLength)));
+			(ptr.*mptr).assign(attrValue, attrLength);
+			return S_OK;
+		}
+
+		template <typename T, size_t N>
+		HRESULT RetrieveAttribute(ISAXAttributes* pAttributes, T& ptr, uint32_t T::* mptr, const wchar_t (&name)[N])
+		{
+			const wchar_t* attrValue;
+			int attrLength;
+			assert(mptr != nullptr);
+			assert(pAttributes != nullptr);
+			RETURN_HR_IF(E_FAIL, FAILED(pAttributes->getValueFromName(L"", 0, name, N - 1, &attrValue, &attrLength)));
+			try
+			{
+				ptr.*mptr = wcstou32(attrValue, attrLength);
+			}
+			catch (...)
+			{
+				return E_FAIL;
+			}
+			return S_OK;
+		}
+
 		HRESULT STDMETHODCALLTYPE startElement(const wchar_t* pwchNamespaceUri, int cchNamespaceUri,
 		                                       const wchar_t* pwchLocalName,
 		                                       int cchLocalName, const wchar_t* pwchQName, int cchQName,
@@ -359,22 +390,26 @@ namespace
 				{
 					m_db->m_fonts.emplace_back();
 					m_status.emplace_back(ElementType::FontFaceElement);
-					const wchar_t* attrValue;
-					int attrLength;
-					if (FAILED(pAttributes->getValueFromName(L"", 0, L"path", 4, &attrValue, &attrLength)))
-						return E_FAIL;
-					m_db->m_fonts.back().m_path.assign(attrValue, attrLength);
-					if (FAILED(pAttributes->getValueFromName(L"", 0, L"index", 5, &attrValue, &attrLength)))
-						return E_FAIL;
-					try
-					{
-						m_db->m_fonts.back().m_index = wcstou32(attrValue, attrLength);
-					}
-					catch (...)
-					{
-						// don't let exceptions travel across dll
-						return E_FAIL;
-					}
+					RETURN_IF_FAILED(
+						RetrieveAttribute(pAttributes, m_db->m_fonts.back(), &sfh::FontDatabase::FontFaceElement::m_path
+							,
+							L"path"));
+					RETURN_IF_FAILED(
+						RetrieveAttribute(pAttributes, m_db->m_fonts.back(), &sfh::FontDatabase::FontFaceElement::
+							m_index,
+							L"index"));
+					RETURN_IF_FAILED(
+						RetrieveAttribute(pAttributes, m_db->m_fonts.back(), &sfh::FontDatabase::FontFaceElement::
+							m_weight,
+							L"weight"));
+					RETURN_IF_FAILED(
+						RetrieveAttribute(pAttributes, m_db->m_fonts.back(), &sfh::FontDatabase::FontFaceElement::
+							m_oblique,
+							L"oblique"));
+					RETURN_IF_FAILED(
+						RetrieveAttribute(pAttributes, m_db->m_fonts.back(), &sfh::FontDatabase::FontFaceElement::
+							m_psOutline,
+							L"psOutline"));
 				}
 				else
 				{
@@ -506,14 +541,14 @@ std::unique_ptr<sfh::ConfigFile> sfh::ConfigFile::ReadFromFile(const std::wstrin
 
 	wil::unique_variant pathVariant;
 	wil::com_ptr<IStream> stream;
-	THROW_IF_FAILED(
+	THROW_IF_FAILED_MSG(
 		SHCreateStreamOnFileEx(
 			path.c_str(),
 			STGM_FAILIFTHERE | STGM_READ | STGM_SHARE_EXCLUSIVE,
 			FILE_ATTRIBUTE_NORMAL,
 			FALSE,
 			nullptr,
-			stream.put()));
+			stream.put()), "CANNOT OPEN CONFIG FILE: %ws", path.c_str());
 	InitVariantFromUnknown(stream.query<IUnknown>().get(), pathVariant.addressof());
 
 	auto saxReader = wil::CoCreateInstance<ISAXXMLReader>(CLSID_SAXXMLReader30);
@@ -530,14 +565,14 @@ std::unique_ptr<sfh::FontDatabase> sfh::FontDatabase::ReadFromFile(const std::ws
 
 	wil::unique_variant pathVariant;
 	wil::com_ptr<IStream> stream;
-	THROW_IF_FAILED(
+	THROW_IF_FAILED_MSG(
 		SHCreateStreamOnFileEx(
 			path.c_str(),
 			STGM_FAILIFTHERE | STGM_READ | STGM_SHARE_EXCLUSIVE,
 			FILE_ATTRIBUTE_NORMAL,
 			FALSE,
 			nullptr,
-			stream.put()));
+			stream.put()), "CANNOT OPEN FONTDATABASE: %ws", path.c_str());
 	InitVariantFromUnknown(stream.query<IUnknown>().get(), pathVariant.addressof());
 
 	auto saxReader = wil::CoCreateInstance<ISAXXMLReader>(CLSID_SAXXMLReader30);
@@ -622,6 +657,12 @@ namespace sfh
 			THROW_IF_FAILED(fontfaceElement->setAttribute(wil::make_bstr(L"path").get(), value));
 			InitVariantFromString(std::to_wstring(font.m_index).c_str(), value.reset_and_addressof());
 			THROW_IF_FAILED(fontfaceElement->setAttribute(wil::make_bstr(L"index").get(), value));
+			InitVariantFromString(std::to_wstring(font.m_weight).c_str(), value.reset_and_addressof());
+			THROW_IF_FAILED(fontfaceElement->setAttribute(wil::make_bstr(L"weight").get(), value));
+			InitVariantFromString(std::to_wstring(font.m_oblique).c_str(), value.reset_and_addressof());
+			THROW_IF_FAILED(fontfaceElement->setAttribute(wil::make_bstr(L"oblique").get(), value));
+			InitVariantFromString(std::to_wstring(font.m_psOutline).c_str(), value.reset_and_addressof());
+			THROW_IF_FAILED(fontfaceElement->setAttribute(wil::make_bstr(L"psOutline").get(), value));
 
 			for (auto& name : font.m_names)
 			{

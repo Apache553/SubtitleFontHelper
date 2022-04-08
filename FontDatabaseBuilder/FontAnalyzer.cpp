@@ -7,6 +7,8 @@
 #include FT_FREETYPE_H
 #include FT_TRUETYPE_IDS_H
 #include FT_SFNT_NAMES_H
+#include FT_TRUETYPE_TABLES_H
+#include FT_TYPE1_TABLES_H
 
 class FontAnalyzer::Implementation
 {
@@ -135,6 +137,17 @@ public:
 				&face) != 0)
 				throw std::runtime_error("failed to open fontface!");
 			auto doneFace = wil::scope_exit([&]() { FT_Done_Face(face); });
+
+			TT_OS2* os2 = static_cast<TT_OS2*>(FT_Get_Sfnt_Table(face, FT_SFNT_OS2));
+			if (os2 && os2->version != 0xffff && os2->usWeightClass)
+				faceElement.m_weight = os2->usWeightClass;
+			else
+				faceElement.m_weight = face->style_flags & FT_STYLE_FLAG_BOLD ? 700 : 300;
+
+			faceElement.m_oblique = face->style_flags & FT_STYLE_FLAG_ITALIC ? 1 : 0;
+
+			PS_FontInfoRec psInfo;
+			faceElement.m_psOutline = FT_Get_PS_Font_Info(face, &psInfo) != FT_Err_Invalid_Argument;
 
 			FT_UInt nameCount = FT_Get_Sfnt_Name_Count(face);
 			for (FT_UInt nameIndex = 0; nameIndex < nameCount; ++nameIndex)

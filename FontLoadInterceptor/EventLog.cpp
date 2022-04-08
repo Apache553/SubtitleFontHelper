@@ -73,3 +73,8 @@ void sfh::EventLog::LogDllQueryNoResult(uint32_t processId, uint32_t threadId, c
 {
 	EventWriteDllQueryNoResult(processId, threadId, requestName);
 }
+
+void sfh::EventLog::LogDllLoadFont(uint32_t processId, uint32_t threadId, const wchar_t* path)
+{
+	EventWriteDllLoadFont(processId, threadId, path);
+}

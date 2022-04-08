@@ -79,6 +79,9 @@ namespace sfh
 			// attribute
 			std::wstring m_path;
 			uint32_t m_index = std::numeric_limits<uint32_t>::max();
+			uint32_t m_weight;
+			uint32_t m_oblique;
+			uint32_t m_psOutline;
 			// content
 			std::vector<NameElement> m_names;
 		};
