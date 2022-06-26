@@ -14,13 +14,19 @@ namespace sfh
 		virtual FontQueryResponse HandleRequest(const FontQueryRequest& request) = 0;
 	};
 
+	class IRpcFeedbackHandler
+	{
+	public:
+		virtual void HandleFeedback(const FontQueryRequest& request) = 0;
+	};
+
 	class RpcServer
 	{
 	private:
 		class Implementation;
 		std::unique_ptr<Implementation> m_impl;
 	public:
-		RpcServer(IDaemon* daemon, IRpcRequestHandler* handler);
+		RpcServer(IDaemon* daemon, IRpcRequestHandler* handler, IRpcFeedbackHandler* feedbackHandler);
 		~RpcServer();
 
 		RpcServer(const RpcServer&) = delete;

@@ -215,7 +215,7 @@ namespace sfh
 		return ret;
 	}
 
-	FontQueryResponse QueryFont(const wchar_t* str)
+	wil::unique_hfile OpenPipe()
 	{
 		std::wstring pipeName = LR"_(\\.\pipe\SubtitleFontAutoLoaderRpc-)_";
 		pipeName += GetCurrentProcessUserSid();
@@ -245,9 +245,11 @@ namespace sfh
 			THROW_LAST_ERROR_IF(!pipe.is_valid());
 		}
 
-		FontQueryRequest request;
-		request.set_version(1);
-		request.set_querystring(WideToUtf8String(str));
+		return pipe;
+	}
+
+	void SendRequst(wil::unique_hfile& pipe, const FontQueryRequest& request)
+	{
 		std::ostringstream oss;
 		request.SerializeToOstream(&oss);
 		std::string requestBuffer = std::move(oss).str();
@@ -255,17 +257,65 @@ namespace sfh
 		auto requestLength = static_cast<uint32_t>(requestBuffer.size());
 		WritePipe(pipe.get(), &requestLength, sizeof(uint32_t));
 		WritePipe(pipe.get(), requestBuffer.data(), static_cast<DWORD>(requestLength));
+	}
 
+	template <typename ReturnType>
+	ReturnType FetchResponse(wil::unique_hfile& pipe)
+	{
 		uint32_t responseLength;
 		ReadPipe(pipe.get(), &responseLength, sizeof(uint32_t));
 		std::vector<char> responseBuffer(responseLength);
 		ReadPipe(pipe.get(), responseBuffer.data(), responseLength);
 
-		FontQueryResponse response;
+		ReturnType response;
 		if (!response.ParseFromArray(responseBuffer.data(), responseLength))
 			throw std::runtime_error("bad response");
-
 		return response;
+	}
+
+	template <>
+	void FetchResponse(wil::unique_hfile&)
+	{
+	}
+
+	template <typename ReturnType>
+	ReturnType MakeRequest(const FontQueryRequest& request)
+	{
+		auto pipe = OpenPipe();
+
+		// send
+		SendRequst(pipe, request);
+
+		// recv
+		return FetchResponse<ReturnType>(pipe);
+	}
+
+	FontQueryResponse QueryFont(const wchar_t* str)
+	{
+		FontQueryRequest request;
+		request.set_version(1);
+		request.set_querystring(WideToUtf8String(str));
+
+		return MakeRequest<FontQueryResponse>(request);
+	}
+
+	void SendFeedback(FontLoadFeedback& feedback)
+	{
+		FontQueryRequest request;
+		request.set_version(1);
+		request.set_allocated_feedbackdata(&feedback);
+
+		MakeRequest<void>(request);
+
+		request.release_feedbackdata();
+	}
+
+	void SendFeedbackAsync(FontLoadFeedback&& feedback)
+	{
+		std::thread([fb = std::move(feedback)]()mutable
+		{
+			SendFeedback(fb);
+		}).detach();
 	}
 
 	void TryLoad(const wchar_t* query, const FontQueryResponse& response)
@@ -306,13 +356,21 @@ namespace sfh
 				}
 				return TRUE;
 			}, reinterpret_cast<LPARAM>(&enumInfo), 0);
+
+		FontLoadFeedback feedback;
+
 		for (int i = 0; i < response.fonts_size(); ++i)
 		{
 			if (enumInfo.maskedFace[i])continue;
 			auto path = Utf8ToWideString(response.fonts()[i].path());
+			feedback.add_path(response.fonts()[i].path());
+
 			AddFontResourceExW(path.c_str(), FR_PRIVATE, nullptr);
+
 			EventLog::GetInstance().LogDllLoadFont(GetCurrentProcessId(), GetCurrentThreadId(), path.c_str());
 		}
+
+		SendFeedbackAsync(std::move(feedback));
 	}
 
 	void QueryAndLoad(const wchar_t* query)

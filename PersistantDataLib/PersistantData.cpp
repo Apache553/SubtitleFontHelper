@@ -187,12 +187,34 @@ namespace
 					m_status.emplace_back(ElementType::RootElement);
 					const wchar_t* attrValue;
 					int attrLength;
+
+#define DEFINE_XML_ATTRIBUTE(name) static constexpr wchar_t name[] = L#name; \
+	static constexpr size_t name##Cch = std::extent_v<decltype(name)>-1
+
+					DEFINE_XML_ATTRIBUTE(wmiPollInterval);
+					DEFINE_XML_ATTRIBUTE(lruSize);
+
+#undef DEFINE_XML_ATTRIBUTE
 					if (SUCCEEDED(
-						pAttributes->getValueFromName(L"", 0, L"wmiPollInterval", 15, &attrValue, &attrLength)))
+						pAttributes->getValueFromName(L"", 0, wmiPollInterval, wmiPollIntervalCch, &attrValue, &
+							attrLength)))
 					{
 						try
 						{
 							m_config->wmiPollInterval = wcstou32(attrValue, attrLength);
+						}
+						catch (...)
+						{
+							// don't let exceptions travel across dll
+							return E_FAIL;
+						}
+					}
+					else if (SUCCEEDED(
+						pAttributes->getValueFromName(L"", 0, lruSize, lruSizeCch, &attrValue, &attrLength)))
+					{
+						try
+						{
+							m_config->lruSize = wcstou32(attrValue, attrLength);
 						}
 						catch (...)
 						{
@@ -616,6 +638,8 @@ namespace sfh
 		wil::unique_variant value;
 		InitVariantFromString(std::to_wstring(config.wmiPollInterval).c_str(), value.addressof());
 		THROW_IF_FAILED(rootElement->setAttribute(wil::make_bstr(L"wmiPollInterval").get(), value));
+		InitVariantFromString(std::to_wstring(config.lruSize).c_str(), value.addressof());
+		THROW_IF_FAILED(rootElement->setAttribute(wil::make_bstr(L"lruSize").get(), value));
 		for (auto& indexFile : config.m_indexFile)
 		{
 			wil::com_ptr<IXMLDOMElement> indexFileElement;

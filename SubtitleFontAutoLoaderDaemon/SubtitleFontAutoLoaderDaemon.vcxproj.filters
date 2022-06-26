@@ -45,6 +45,9 @@
     <ClCompile Include="FontQuery.pb.cpp">
       <Filter>Proto</Filter>
     </ClCompile>
+    <ClCompile Include="Prefetch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -75,6 +78,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ProcessMonitor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Prefetch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

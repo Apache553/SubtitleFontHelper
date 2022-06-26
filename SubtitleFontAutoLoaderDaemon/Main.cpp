@@ -7,20 +7,19 @@
 #include "QueryService.h"
 #include "RpcServer.h"
 #include "ProcessMonitor.h"
+#include "Prefetch.h"
 
 #include <queue>
 #include <variant>
+#include <filesystem>
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#include <pathcch.h>
 #include <strsafe.h>
 #include <shellapi.h>
 #include <wil/win32_helpers.h>
 
 #include "event.h"
-
-#pragma comment(lib, "pathcch.lib")
 
 namespace sfh
 {
@@ -74,6 +73,7 @@ namespace sfh
 			std::unique_ptr<QueryService> m_queryService;
 			std::unique_ptr<RpcServer> m_rpcServer;
 			std::unique_ptr<ProcessMonitor> m_processMonitor;
+			std::unique_ptr<Prefetch> m_prefetch;
 		};
 
 		std::unique_ptr<Service> m_service;
@@ -146,10 +146,10 @@ namespace sfh
 					m_msgQueue.pop();
 			}
 			m_service = std::make_unique<Service>();
-			auto selfPathPtr = wil::GetModuleFileNameW<wil::unique_hlocal_string>();
-			PathCchRemoveFileSpec(selfPathPtr.get(), wcslen(selfPathPtr.get()) + 1);
-			std::wstring configPath = selfPathPtr.get();
-			configPath += L"\\SubtitleFontHelper.xml";
+			std::filesystem::path selfPath{wil::GetModuleFileNameW<wil::unique_hlocal_string>().get()};
+			selfPath.remove_filename();
+			auto configPath = selfPath / L"SubtitleFontHelper.xml";
+			auto lruCachePath = selfPath / L"lruCache.txt";
 			auto cfg = ConfigFile::ReadFromFile(configPath);
 
 			m_service->m_systemTray = std::make_unique<SystemTray>(this);
@@ -158,9 +158,12 @@ namespace sfh
 			{
 				dbs.emplace_back(FontDatabase::ReadFromFile(indexFile.m_path));
 			}
+			m_service->m_prefetch = std::make_unique<Prefetch>(this, cfg->lruSize, lruCachePath);
 			m_service->m_queryService = std::make_unique<QueryService>(this);
 			m_service->m_rpcServer = std::make_unique<RpcServer>(
-				this, m_service->m_queryService->GetRpcRequestHandler());
+				this,
+				m_service->m_queryService->GetRpcRequestHandler(),
+				m_service->m_prefetch->GetRpcFeedbackHandler());
 			m_service->m_queryService->Load(std::move(dbs));
 			m_service->m_processMonitor = std::make_unique<ProcessMonitor>(
 				this, std::chrono::milliseconds(cfg->wmiPollInterval));

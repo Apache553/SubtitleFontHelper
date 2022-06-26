@@ -11,7 +11,8 @@ class sfh::RpcServer::Implementation
 {
 private:
 	IDaemon* m_daemon;
-	IRpcRequestHandler* m_handler;
+	IRpcRequestHandler* m_requestHandler;
+	IRpcFeedbackHandler* m_feedbackHandler;
 
 	std::thread m_listener;
 	std::atomic<size_t> m_checkPoint;
@@ -57,8 +58,8 @@ private:
 public:
 	static constexpr size_t WORKER_COUNT = 4;
 
-	Implementation(IDaemon* daemon, IRpcRequestHandler* handler)
-		: m_daemon(daemon), m_handler(handler), m_checkPoint(0)
+	Implementation(IDaemon* daemon, IRpcRequestHandler* requestHandler, IRpcFeedbackHandler* feedbackHandler)
+		: m_daemon(daemon), m_requestHandler(requestHandler), m_feedbackHandler(feedbackHandler), m_checkPoint(0)
 	{
 		m_exitEvent.create(wil::EventOptions::ManualReset);
 		m_listener = std::thread([&]()
@@ -174,6 +175,23 @@ private:
 		return pipe;
 	}
 
+	void HandleQuery(wil::unique_handle& pipe, OVERLAPPED* overlapped, FontQueryRequest& request)
+	{
+		auto response = m_requestHandler->HandleRequest(request);
+
+		std::ostringstream oss;
+		response.SerializeToOstream(&oss);
+		std::string buffer = std::move(oss).str();
+		auto responseLength = static_cast<uint32_t>(buffer.size());
+		WritePipe(pipe.get(), &responseLength, sizeof(uint32_t), overlapped);
+		WritePipe(pipe.get(), buffer.data(), static_cast<DWORD>(responseLength), overlapped);
+	}
+
+	void HandleFeedback(wil::unique_handle& pipe, OVERLAPPED* overlapped, FontQueryRequest& request)
+	{
+		m_feedbackHandler->HandleFeedback(request);
+	}
+
 	void AcceptRequest(wil::unique_handle& pipe, OVERLAPPED* overlapped)
 	{
 		uint32_t requestLength;
@@ -188,15 +206,16 @@ private:
 		if (request.version() != 1)
 			return;
 
-		auto response = m_handler->HandleRequest(request);
-
-		std::ostringstream oss;
-		response.SerializeToOstream(&oss);
-		std::string buffer = std::move(oss).str();
-		auto responseLength = static_cast<uint32_t>(buffer.size());
-		WritePipe(pipe.get(), &responseLength, sizeof(uint32_t), overlapped);
-		WritePipe(pipe.get(), buffer.data(), static_cast<DWORD>(responseLength), overlapped);
+		if (request.has_querystring())
+		{
+			HandleQuery(pipe, overlapped, request);
+		}
+		else if (request.has_feedbackdata())
+		{
+			HandleFeedback(pipe, overlapped, request);
+		}
 	}
+
 
 	static void ReadPipe(HANDLE pipe, void* dst, DWORD size, OVERLAPPED* overlapped)
 	{
@@ -230,8 +249,8 @@ private:
 	}
 };
 
-sfh::RpcServer::RpcServer(IDaemon* daemon, IRpcRequestHandler* handler)
-	: m_impl(std::make_unique<Implementation>(daemon, handler))
+sfh::RpcServer::RpcServer(IDaemon* daemon, IRpcRequestHandler* requestHandler, IRpcFeedbackHandler* feedbackHandler)
+	: m_impl(std::make_unique<Implementation>(daemon, requestHandler, feedbackHandler))
 {
 }
 

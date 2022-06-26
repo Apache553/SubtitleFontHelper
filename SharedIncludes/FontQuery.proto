@@ -16,11 +16,19 @@ message FontFace
 message FontQueryRequest
 {
 	uint32 version = 1;
+	oneof request {
 	string queryString = 2;
+	FontLoadFeedback feedbackData = 3;
+	}
 }
 
 message FontQueryResponse
 {
 	uint32 version = 1;
 	repeated FontFace fonts = 2;
+}
+
+message FontLoadFeedback
+{
+	repeated string path = 1;
 }

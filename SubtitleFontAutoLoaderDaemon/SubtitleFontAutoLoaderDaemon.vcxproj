@@ -196,6 +196,7 @@
     <ClCompile Include="FontQuery.pb.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="pch.cpp" />
+    <ClCompile Include="Prefetch.cpp" />
     <ClCompile Include="ProcessMonitor.cpp" />
     <ClCompile Include="QueryService.cpp" />
     <ClCompile Include="RpcServer.cpp" />
@@ -232,6 +233,7 @@
     <ClInclude Include="EventLog.h" />
     <ClInclude Include="IDaemon.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="Prefetch.h" />
     <ClInclude Include="ProcessMonitor.h" />
     <ClInclude Include="QueryService.h" />
     <ClInclude Include="resource.h" />
