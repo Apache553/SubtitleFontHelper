@@ -146,7 +146,7 @@ public:
 	{
 		if (m_lru.Put(path))
 		{
-			AddFontResourceExW(path.c_str(), FR_PRIVATE, nullptr);
+			AddFontResourceExW(path.c_str(), FR_PRIVATE | FR_NOT_ENUM, nullptr);
 		}
 	}
 

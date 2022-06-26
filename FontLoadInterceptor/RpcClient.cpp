@@ -307,7 +307,7 @@ namespace sfh
 
 		MakeRequest<void>(request);
 
-		request.release_feedbackdata();
+		auto _ = request.release_feedbackdata();
 	}
 
 	void SendFeedbackAsync(FontLoadFeedback&& feedback)
