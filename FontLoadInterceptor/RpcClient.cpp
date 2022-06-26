@@ -275,7 +275,8 @@ namespace sfh
 			const FontQueryResponse* response;
 			std::vector<char> maskedFace;
 		};
-		HDC hDC = GetDC(HWND_DESKTOP);
+
+		wil::unique_hdc_window hDC = wil::GetWindowDC(HWND_DESKTOP);
 		LOGFONTW lf{};
 		wcscpy_s(lf.lfFaceName, LF_FACESIZE, query);
 
@@ -284,7 +285,7 @@ namespace sfh
 		enumInfo.maskedFace.assign(response.fonts_size(), 0);
 
 		Detour::Original::EnumFontFamiliesExW(
-			hDC, &lf, [](const LOGFONT* lpelfe, const TEXTMETRIC* lpntme, DWORD dwFontType, LPARAM lParam)-> int
+			hDC.get(), &lf, [](const LOGFONT* lpelfe, const TEXTMETRIC* lpntme, DWORD dwFontType, LPARAM lParam)-> int
 			{
 				EnumInfo& info = *reinterpret_cast<EnumInfo*>(lParam);
 				auto faceName = WideToUtf8String(lpelfe->lfFaceName);
