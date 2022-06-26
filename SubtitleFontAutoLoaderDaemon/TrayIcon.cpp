@@ -135,6 +135,9 @@ private:
 		case WM_CREATE:
 			SetupTrayIcon(true);
 			break;
+		case WM_ENDSESSION:
+			m_daemon->NotifyExit();
+			break;
 		case WM_CLOSE:
 			DestroyTrayIcon();
 			DestroyWindow(hWnd);
