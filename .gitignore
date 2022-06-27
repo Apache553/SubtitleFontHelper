@@ -37,3 +37,4 @@ packages/
 ReleaseBuild/
 *.aps
 vcpkg_installed/
+*.user

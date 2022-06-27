@@ -76,7 +76,7 @@ inline std::wostream& operator<<(std::wostream& os, const EraseLineStruct& attr)
 	return os;
 }
 
-std::wstring ConsoleReadLine()
+inline std::wstring ConsoleReadLine()
 {
 	std::wstring ret;
 	wchar_t c;

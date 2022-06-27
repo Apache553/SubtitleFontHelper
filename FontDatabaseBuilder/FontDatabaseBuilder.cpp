@@ -1,10 +1,12 @@
-﻿#include "Common.h"
+#include "Common.h"
 #include "ConsoleHelper.h"
 #include "Win32Helper.h"
 #include "FontAnalyzer.h"
+#include "FileDeduplicate.h"
 
 #include <fcntl.h>
 #include <io.h>
+
 
 std::atomic<bool> g_cancelToken{false};
 
@@ -16,7 +18,7 @@ BOOL WINAPI ControlHandler(DWORD dwCtrlType)
 	return TRUE;
 }
 
-void FindOptions(int argc, wchar_t** argv, std::vector<std::wstring>& input, std::wstring& output)
+void FindOptions(int argc, wchar_t** argv, std::vector<std::wstring>& input, std::wstring& output, bool& deduplicate)
 {
 	for (int i = 1; i < argc; ++i)
 	{
@@ -33,6 +35,10 @@ void FindOptions(int argc, wchar_t** argv, std::vector<std::wstring>& input, std
 				{
 					throw std::runtime_error("missing argument for option -output");
 				}
+			}
+			else if (_wcsicmp(argv[i], L"-dedup") == 0)
+			{
+				deduplicate = true;
 			}
 			else
 			{
@@ -57,6 +63,7 @@ void PrintHelp()
 	std::wcout << SetOutputDefault
 		<< "Usage: FontDatabaseBuilder.exe <Directory> [Directory...] [-output OutputFile]" << std::endl;
 }
+
 
 int wmain(int argc, wchar_t* argv[], wchar_t* envp[])
 {
@@ -86,9 +93,10 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[])
 		// validate arguments
 		std::vector<std::wstring> input;
 		std::wstring output;
+		bool deduplicate;
 		try
 		{
-			FindOptions(argc, argv, input, output);
+			FindOptions(argc, argv, input, output, deduplicate);
 		}
 		catch (std::exception& e)
 		{
@@ -136,9 +144,10 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[])
 
 
 		std::vector<std::wstring> fileSet;
+		std::vector<uint64_t> fileSize;
 		for (auto& i : input)
 		{
-			ScanDirectory(i.c_str(), fileSet, [](const wchar_t* path)
+			ScanDirectory(i.c_str(), fileSet, fileSize, [](const wchar_t* path)
 			{
 				constexpr const wchar_t* acceptExt[] = {L".ttf", L".otf", L".ttc", L".otc"};
 				constexpr size_t acceptExtLen[] = {4, 4, 4, 4};
@@ -157,6 +166,30 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[])
 		{
 			std::wcout << "Nothing to do." << std::endl;
 			return 0;
+		}
+
+		if (deduplicate)
+		{
+			std::wcout << "Deduplicate..." << std::endl;
+			std::atomic<size_t> progress = 0;
+			const size_t total = fileSet.size();
+			std::thread thr([&]()
+			{
+				fileSet = Deduplicate(fileSet, fileSize, progress);
+			});
+			while (!g_cancelToken)
+			{
+				EraseLineStruct::EraseLine();
+				PrintProgressBar(progress, total, 28);
+				if (progress == total)
+					break;
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			}
+			if (thr.joinable())
+				thr.join();
+			std::wcout << std::endl;
+			ThrowIfCancelled();
+			std::wcout << "Discovered " << fileSet.size() << " files." << std::endl;
 		}
 
 		std::mutex logLock;

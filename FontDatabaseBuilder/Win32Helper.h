@@ -94,10 +94,22 @@ public:
 		THROW_LAST_ERROR_IF(VirtualQuery(m_map.get(), &info, sizeof(info)) == 0);
 		return info.RegionSize;
 	}
+
+	size_t GetFileLength() const
+	{
+		FILE_STANDARD_INFO info;
+		THROW_LAST_ERROR_IF(GetFileInformationByHandleEx(
+			m_hfile.get(),
+			FileStandardInfo,
+			&info,
+			sizeof(info)
+		) == FALSE);
+		return static_cast<size_t>(info.EndOfFile.QuadPart);
+	}
 };
 
 template <typename T>
-void ScanDirectory(const wchar_t* path, std::vector<std::wstring>& result, T&& filter)
+void ScanDirectory(const wchar_t* path, std::vector<std::wstring>& result, std::vector<uint64_t>& sizes, T&& filter)
 {
 	std::vector<std::wstring> ret;
 	const size_t pathLength = wcslen(path);
@@ -127,11 +139,15 @@ void ScanDirectory(const wchar_t* path, std::vector<std::wstring>& result, T&& f
 		wcscpy_s(subDirectoryPointer, std::extent_v<decltype(WIN32_FIND_DATAW::cFileName)>, data.cFileName);
 		if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 		{
-			ScanDirectory(subDirectoryBuffer.get(), result, std::move(filter));
+			ScanDirectory(subDirectoryBuffer.get(), result, sizes, std::forward<T>(filter));
 		}
 		else if (filter(subDirectoryBuffer.get()))
 		{
 			result.emplace_back(subDirectoryBuffer.get());
+			LARGE_INTEGER iSize;
+			iSize.HighPart = data.nFileSizeHigh;
+			iSize.LowPart = data.nFileSizeLow;
+			sizes.push_back(iSize.QuadPart);
 		}
 	}
 	while (FindNextFileW(hFind.get(), &data) != 0);
