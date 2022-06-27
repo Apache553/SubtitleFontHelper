@@ -209,7 +209,7 @@ namespace
 							return E_FAIL;
 						}
 					}
-					else if (SUCCEEDED(
+					if (SUCCEEDED(
 						pAttributes->getValueFromName(L"", 0, lruSize, lruSizeCch, &attrValue, &attrLength)))
 					{
 						try
