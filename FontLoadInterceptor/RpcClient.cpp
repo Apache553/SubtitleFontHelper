@@ -8,6 +8,7 @@
 #include <cwchar>
 #include <sddl.h>
 #include <unordered_set>
+#include <sstream>
 
 #include <wil/resource.h>
 

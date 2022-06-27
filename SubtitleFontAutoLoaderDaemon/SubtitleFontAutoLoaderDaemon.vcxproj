@@ -81,6 +81,7 @@
     <IntDir>$(SolutionDir)Build\Intermediate\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <Linkage-protobuf>static</Linkage-protobuf>
     <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    <CustomBuildAfterTargets>VcpkgInstallManifestDependencies</CustomBuildAfterTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -89,6 +90,7 @@
     <IntDir>$(SolutionDir)Build\Intermediate\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <Linkage-protobuf>static</Linkage-protobuf>
     <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    <CustomBuildAfterTargets>VcpkgInstallManifestDependencies</CustomBuildAfterTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -97,6 +99,7 @@
     <IntDir>$(SolutionDir)Build\Intermediate\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <Linkage-protobuf>static</Linkage-protobuf>
     <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    <CustomBuildAfterTargets>VcpkgInstallManifestDependencies</CustomBuildAfterTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -105,6 +108,10 @@
     <IntDir>$(SolutionDir)Build\Intermediate\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <Linkage-protobuf>static</Linkage-protobuf>
     <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    <CustomBuildAfterTargets>VcpkgInstallManifestDependencies</CustomBuildAfterTargets>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgEnableManifest>true</VcpkgEnableManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -205,13 +212,13 @@
   <ItemGroup>
     <CustomBuild Include="..\SharedIncludes\FontQuery.proto">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(VcpkgRoot)\installed\$(VcpkgTriplet)\tools\protobuf\protoc.exe -I=%(RelativeDir) --cpp_out=$(IntDir)proto %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(VcpkgManifestRoot)\vcpkg_installed\$(VcpkgTriplet)\$(VcpkgTriplet)\tools\protobuf\protoc.exe -I=%(RelativeDir) --cpp_out=$(IntDir)proto %(Identity)</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Generate protobuf...</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(VcpkgRoot)\installed\$(VcpkgTriplet)\tools\protobuf\protoc.exe -I=%(RelativeDir) --cpp_out=$(IntDir)proto %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(VcpkgManifestRoot)\vcpkg_installed\$(VcpkgTriplet)\$(VcpkgTriplet)\tools\protobuf\protoc.exe -I=%(RelativeDir) --cpp_out=$(IntDir)proto %(Identity)</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Generate protobuf...</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VcpkgRoot)\installed\$(VcpkgTriplet)\tools\protobuf\protoc.exe -I=%(RelativeDir) --cpp_out=$(IntDir)proto %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VcpkgManifestRoot)\vcpkg_installed\$(VcpkgTriplet)\$(VcpkgTriplet)\tools\protobuf\protoc.exe -I=%(RelativeDir) --cpp_out=$(IntDir)proto %(Identity)</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Generate protobuf...</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VcpkgRoot)\installed\$(VcpkgTriplet)\tools\protobuf\protoc.exe -I=%(RelativeDir) --cpp_out=$(IntDir)proto %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VcpkgManifestRoot)\vcpkg_installed\$(VcpkgTriplet)\$(VcpkgTriplet)\tools\protobuf\protoc.exe -I=%(RelativeDir) --cpp_out=$(IntDir)proto %(Identity)</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Generate protobuf...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)proto\%(Filename).pb.h;$(IntDir)proto\%(Filename).pb.cc</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)proto\%(Filename).pb.h;$(IntDir)proto\%(Filename).pb.cc</Outputs>

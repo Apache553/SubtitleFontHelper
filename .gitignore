@@ -36,3 +36,4 @@ Build/
 packages/
 ReleaseBuild/
 *.aps
+vcpkg_installed/
