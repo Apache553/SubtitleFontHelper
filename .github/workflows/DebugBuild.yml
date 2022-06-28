@@ -32,7 +32,7 @@ jobs:
       id: cache
       with:
         path: vcpkg_installed\
-        key: ${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+        key: ${{ runner.os }}-${{env.BUILD_CONFIGURATION}}-${{ hashFiles('vcpkg.json') }}
 
     - name: Restore NuGet packages
       working-directory: ${{env.GITHUB_WORKSPACE}}
