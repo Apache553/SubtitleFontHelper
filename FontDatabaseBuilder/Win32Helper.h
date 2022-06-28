@@ -61,7 +61,7 @@ public:
 				FILE_SHARE_READ,
 				nullptr,
 				OPEN_EXISTING,
-				FILE_ATTRIBUTE_NORMAL,
+				FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
 				nullptr));
 		THROW_LAST_ERROR_IF(!m_hfile.is_valid());
 

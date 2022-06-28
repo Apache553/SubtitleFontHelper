@@ -7,10 +7,15 @@
 #include <fcntl.h>
 #include <io.h>
 
+DWORD g_ProcessorCount = []()
+{
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	return info.dwNumberOfProcessors;
+}();
+DWORD g_WorkerCount = g_ProcessorCount / 2;
 
 std::atomic<bool> g_cancelToken{false};
-
-constexpr static size_t WORKER_COUNT = 4;
 
 BOOL WINAPI ControlHandler(DWORD dwCtrlType)
 {
@@ -40,6 +45,20 @@ void FindOptions(int argc, wchar_t** argv, std::vector<std::wstring>& input, std
 			{
 				deduplicate = true;
 			}
+			else if (_wcsicmp(argv[i], L"-worker") == 0)
+			{
+				if (i + 1 < argc)
+				{
+					g_WorkerCount = std::stoul(argv[i + 1]);
+					if (g_WorkerCount >= 100)
+						throw std::runtime_error("worker count must be within 1-99");
+					++i;
+				}
+				else
+				{
+					throw std::runtime_error("missing argument for option -worker");
+				}
+			}
 			else
 			{
 				char buffer[64];
@@ -61,9 +80,12 @@ void FindOptions(int argc, wchar_t** argv, std::vector<std::wstring>& input, std
 void PrintHelp()
 {
 	std::wcout << SetOutputDefault
-		<< "Usage: FontDatabaseBuilder.exe <Directory> [Directory...] [-output OutputFile]" << std::endl;
+		<< "Usage: FontDatabaseBuilder.exe [-output OutputFile] [-dedup] [-worker WorkerCount] Directory... \n"
+		<< "\t-output OutputFile: path to the output\n"
+		<< "\t-dedup: enable deduplication of files\n"
+		<< "\t-worker WorkerCount: set work thread count, default is half of your processor count\n"
+		<< "\tDirectory: directories need to build index" << std::endl;
 }
-
 
 int wmain(int argc, wchar_t* argv[], wchar_t* envp[])
 {
@@ -140,8 +162,14 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[])
 		{
 			std::wcout << SetOutputDefault << L"Output path: \n    " << SetOutputYellow << output << std::endl;
 		}
+		if (output.empty())
+		{
+			std::wcout << SetOutputRed << L"Output path is empty!" << std::endl << SetOutputDefault;
+			return 1;
+		}
 		std::wcout << SetOutputDefault;
 
+		std::wcout << "WORKER_COUNT = " << g_WorkerCount << std::endl;
 
 		std::vector<std::wstring> fileSet;
 		std::vector<uint64_t> fileSize;
@@ -192,6 +220,8 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[])
 			std::wcout << "Discovered " << fileSet.size() << " files." << std::endl;
 		}
 
+		std::wcout << "Build database..." << std::endl;
+
 		std::mutex logLock;
 		std::mutex consumeLock;
 		std::mutex resultLock;
@@ -203,7 +233,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t* envp[])
 		db.m_fonts.reserve(fileSet.size()); // reduce reallocation
 
 		std::vector<std::thread> workers;
-		for (size_t i = 0; i < WORKER_COUNT; ++i)
+		for (size_t i = 0; i < g_WorkerCount; ++i)
 		{
 			workers.emplace_back([&]()
 			{
