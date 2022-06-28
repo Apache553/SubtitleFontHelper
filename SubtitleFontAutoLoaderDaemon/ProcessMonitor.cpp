@@ -8,6 +8,8 @@
 #include <WbemIdl.h>
 #pragma comment(lib, "wbemuuid.lib")
 
+#include <queue>
+
 #include <wil/win32_helpers.h>
 #include <wil/resource.h>
 #include <wil/com.h>
@@ -27,6 +29,76 @@ private:
 
 	constexpr static const wchar_t* QUERY_STRING_TEMPLATE =
 		L"SELECT * FROM __InstanceCreationEvent WITHIN %.3f WHERE TargetInstance ISA 'Win32_Process'";
+
+	class EventSink : public IWbemObjectSink
+	{
+	private:
+		std::atomic<ULONG> m_refCount;
+		Implementation* m_impl;
+	public:
+		EventSink(Implementation* impl)
+			: m_refCount(1), m_impl(impl)
+		{
+		}
+
+		~EventSink()
+		{
+		}
+
+		virtual ULONG STDMETHODCALLTYPE AddRef()
+		{
+			return ++m_refCount;
+		}
+
+		virtual ULONG STDMETHODCALLTYPE Release()
+		{
+			auto i = --m_refCount;
+			if (i == 0)
+				delete this;
+			return i;
+		}
+
+		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppv)
+		{
+			if (riid == IID_IUnknown)
+			{
+				*ppv = static_cast<IUnknown*>(this);
+				AddRef();
+				return WBEM_S_NO_ERROR;
+			}
+			if (riid == IID_IWbemObjectSink)
+			{
+				*ppv = static_cast<IWbemObjectSink*>(this);
+				AddRef();
+				return WBEM_S_NO_ERROR;
+			}
+			return E_NOINTERFACE;
+		}
+
+		virtual HRESULT STDMETHODCALLTYPE Indicate(
+			LONG lObjectCount,
+			IWbemClassObject __RPC_FAR* __RPC_FAR* apObjArray
+		)
+		{
+			m_impl->PostNewEvent(apObjArray, lObjectCount);
+			return WBEM_S_NO_ERROR;
+		}
+
+		virtual HRESULT STDMETHODCALLTYPE SetStatus(
+			LONG lFlags,
+			HRESULT hResult,
+			BSTR strParam,
+			IWbemClassObject __RPC_FAR* pObjParam
+		)
+		{
+			return WBEM_S_NO_ERROR;
+		}
+	};
+
+	std::queue<wil::com_ptr<IWbemClassObject>> m_queue;
+	std::mutex m_queueMutex;
+	std::condition_variable m_queueCV;
+
 public:
 	Implementation(IDaemon* daemon, std::chrono::milliseconds interval)
 		: m_daemon(daemon), m_interval(interval)
@@ -50,6 +122,7 @@ public:
 	~Implementation()
 	{
 		m_exitFlag = true;
+		m_queueCV.notify_one();
 		if (m_worker.joinable())
 			m_worker.join();
 	}
@@ -63,6 +136,14 @@ public:
 				throw std::logic_error("rundll32.exe is not allowed!");
 		}
 		m_list = std::move(list);
+	}
+
+	void PostNewEvent(IWbemClassObject** events, size_t count)
+	{
+		std::lock_guard lg(m_queueMutex);
+		for (size_t i = 0; i < count; ++i)
+			m_queue.emplace(events[i]);
+		m_queueCV.notify_one();
 	}
 
 private:
@@ -106,33 +187,63 @@ private:
 			EOAC_NONE
 		));
 
-		wil::com_ptr<IEnumWbemClassObject> enumerator;
+
+		wil::com_ptr<EventSink> sink(new EventSink(this));
+		wil::com_ptr<IWbemObjectSink> sinkStub;
+
+		wil::com_ptr<IUnsecuredApartment> apartment;
+		THROW_IF_FAILED(CoCreateInstance(
+			CLSID_UnsecuredApartment,
+			NULL,
+			CLSCTX_LOCAL_SERVER,
+			IID_IUnsecuredApartment,
+			apartment.put_void()));
+
+		auto wbemApartment = apartment.try_query<IWbemUnsecuredApartment>();
+		if (wbemApartment)
+		{
+			wil::com_ptr<IUnknown> unkStub;
+			THROW_IF_FAILED(wbemApartment->CreateSinkStub(
+				sink.get(),
+				WBEM_FLAG_UNSECAPP_DEFAULT_CHECK_ACCESS,
+				nullptr,
+				reinterpret_cast<IWbemObjectSink**>(unkStub.put())));
+			sinkStub = unkStub.query<IWbemObjectSink>();
+		}
+		else
+		{
+			wil::com_ptr<IUnknown> unkStub;
+			THROW_IF_FAILED(apartment->CreateObjectStub(sink.get(), unkStub.put_unknown()));
+			sinkStub = unkStub.query<IWbemObjectSink>();
+		}
+
 
 		wchar_t queryString[128];
 		swprintf(queryString, std::extent_v<decltype(queryString)>, QUERY_STRING_TEMPLATE,
 		         static_cast<double>(m_interval.count()) / 1000.0);
 
-		THROW_IF_FAILED(wbemService->ExecNotificationQuery(
+		THROW_IF_FAILED(wbemService->ExecNotificationQueryAsync(
 			wil::make_bstr(L"WQL").get(),
 			wil::make_bstr(queryString).get(),
-			WBEM_FLAG_RETURN_IMMEDIATELY | WBEM_FLAG_FORWARD_ONLY,
+			WBEM_FLAG_SEND_STATUS,
 			nullptr,
-			enumerator.put()
+			sinkStub.get()
 		));
 
 		++m_checkPoint;
 
 		while (!m_exitFlag.load())
 		{
-			IWbemClassObject* objects[8];
-			ULONG objectCount;
-			THROW_IF_FAILED(enumerator->Next(static_cast<long>(m_interval.count()),
-				std::extent_v<decltype(objects)>,
-				objects,
-				&objectCount));
-			for (ULONG i = 0; i < objectCount; ++i)
+			std::unique_lock lock(m_queueMutex);
+			m_queueCV.wait(lock, [&]() { return !m_queue.empty() || m_exitFlag; });
+			if (m_exitFlag)
+				break;
+
+			while (!m_queue.empty())
 			{
-				wil::com_ptr<IWbemClassObject> object(objects[i]);
+				wil::com_ptr<IWbemClassObject> object = std::move(m_queue.front());
+				m_queue.pop();
+				lock.unlock();
 				try
 				{
 					HandleProcessCreation(object.get(), wbemService.get());
@@ -140,8 +251,10 @@ private:
 				catch (...)
 				{
 				}
+				lock.lock();
 			}
 		}
+		wbemService->CancelAsyncCall(sinkStub.get());
 	}
 
 	void HandleProcessCreation(IWbemClassObject* object, IWbemServices* service)
