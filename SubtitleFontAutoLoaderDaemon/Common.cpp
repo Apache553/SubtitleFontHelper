@@ -7,6 +7,8 @@
 #include <sddl.h>
 #include <wil/resource.h>
 
+#undef min
+
 std::string sfh::WideToUtf8String(const std::wstring& wStr)
 {
 	std::string ret;
@@ -81,6 +83,23 @@ std::string sfh::GetFileContent(const std::wstring& path)
 	rewind(fp.get());
 	fread(ret.data(), sizeof(char), ret.size(), fp.get());
 	return ret;
+}
+
+void sfh::SetFileContent(const std::wstring& path, const std::string_view& data)
+{
+	static constexpr size_t BLOCK_SIZE = 4 * 1024;
+	wil::unique_file fp;
+	if (_wfopen_s(fp.put(), path.c_str(), L"wb"))
+		throw std::runtime_error("unable to open file");
+	size_t written = 0;
+	while (written != data.size())
+	{
+		written += fwrite(
+			data.data() + written,
+			sizeof(std::string_view::value_type),
+			std::min(data.size() - written, BLOCK_SIZE),
+			fp.get());
+	}
 }
 
 std::wstring sfh::GetCurrentProcessUserSid()

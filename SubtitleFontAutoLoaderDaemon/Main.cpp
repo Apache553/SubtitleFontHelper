@@ -23,6 +23,8 @@
 
 namespace sfh
 {
+	bool g_debugOutputEnabled = false;
+
 	class SingleInstanceLock
 	{
 	private:
@@ -193,6 +195,17 @@ namespace sfh
 		}
 		return ret;
 	}
+
+	void ProcessCommandLine(const std::vector<std::wstring>& cmdline)
+	{
+		for (size_t i = 1; i < cmdline.size(); ++i)
+		{
+			if (_wcsicmp(cmdline[i].c_str(), L"-debug") == 0)
+			{
+				g_debugOutputEnabled = true;
+			}
+		}
+	}
 }
 
 int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nShowCmd)
@@ -200,7 +213,8 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 	// initialize locale for ACP
 	setlocale(LC_ALL, "");
 	SetEnvironmentVariableW(L"__NO_DETOUR", L"TRUE");
-	auto cmdline = sfh::GetCommandLineVector(lpCmdLine);
+	auto cmdline = sfh::GetCommandLineVector(GetCommandLineW());
+	sfh::ProcessCommandLine(cmdline);
 	try
 	{
 		sfh::SingleInstanceLock lock;

@@ -10,6 +10,7 @@ namespace sfh
 	void ErrorMessageBox(const std::wstring& text, const std::wstring& caption, long hResult);
 
 	std::string GetFileContent(const std::wstring& path);
+	void SetFileContent(const std::wstring& path, const std::string_view& data);
 
 	std::wstring GetCurrentProcessUserSid();
 
@@ -17,4 +18,6 @@ namespace sfh
 	{
 		__assume(false);
 	}
+
+	extern bool g_debugOutputEnabled;
 }

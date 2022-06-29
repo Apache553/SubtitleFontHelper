@@ -6,6 +6,7 @@
 #include "EventLog.h"
 
 #include <wil/resource.h>
+#include <wil/win32_helpers.h>
 
 namespace
 {
@@ -66,6 +67,11 @@ namespace
 	public:
 		void AddEntry(const wchar_t* key, T* value)
 		{
+			if (*key == 0)
+			{
+				// empty key is not allowed
+				return;
+			}
 			const wchar_t* keyPointer = key;
 			TrieNode* node = &m_rootNode;
 			// find an arc in list with common prefix of key
@@ -144,6 +150,11 @@ namespace
 
 		std::vector<T*> QueryEntry(const wchar_t* key, bool truncated)
 		{
+			if (*key == 0)
+			{
+				// empty key is not allowed
+				return {};
+			}
 			std::vector<T*> ret;
 			const wchar_t* keyPointer = key;
 			TrieNode* node = &m_rootNode;
@@ -201,6 +212,58 @@ namespace
 				}
 			}
 			return ret;
+		}
+
+		void Dump(std::wostream& stream)
+		{
+			struct Hierarchy
+			{
+				const TrieNode* node;
+				size_t nextArc = 0;
+			};
+			std::vector<Hierarchy> iterateStack;
+			iterateStack.emplace_back(&m_rootNode, 0);
+			std::wstring prefix;
+			if (!m_rootNode.m_branch.empty() || !m_rootNode.m_data.empty())
+				stream << L"\"\"\n";
+			while (!iterateStack.empty())
+			{
+				auto& top = iterateStack.back();
+				if (top.nextArc == 0)
+				{
+					// first reach
+					for (size_t i = 0; i < top.node->m_data.size(); ++i)
+					{
+						wchar_t head = (i == top.node->m_data.size() - 1 && top.node->m_branch.empty()) ? L'©¸' : L'©À';
+						stream << prefix << head << L" [" << top.node->m_data[i]->m_path << L"]\n";
+					}
+				}
+				if (top.nextArc == top.node->m_branch.size())
+				{
+					iterateStack.pop_back();
+					prefix.resize(prefix.size() >= 5 ? prefix.size() - 5 : 0);
+					continue;
+				}
+				wchar_t head = top.nextArc == top.node->m_branch.size() - 1 ? L'©¸' : L'©À';
+				stream << prefix << head << L"©¤©¤ \"" << top.node->m_branch[top.nextArc].first << L"\"\n";
+				if (head == L'©¸')
+					prefix += L"     ";
+				else
+					prefix += L"©¦    ";
+				auto child = top.node->m_branch[top.nextArc].second.get();
+				++top.nextArc;
+				if (child)
+				{
+					iterateStack.emplace_back(child, 0);
+				}
+			}
+		}
+
+		void DumpToFile(const std::wstring& path)
+		{
+			std::wostringstream oss;
+			Dump(oss);
+			sfh::SetFileContent(path, sfh::WideToUtf8String(oss.str()));
 		}
 	};
 }
@@ -272,6 +335,16 @@ public:
 				}
 			}
 		}
+
+		if (g_debugOutputEnabled)
+		{
+			std::filesystem::path exePath{wil::GetModuleFileNameW<wil::unique_process_heap_string>().get()};
+			exePath.remove_filename();
+			win32FamilyName.DumpToFile(exePath / L"win32FamilyName.trie.txt");
+			fullName.DumpToFile(exePath / L"fullName.trie.txt");
+			postScriptName.DumpToFile(exePath / L"postScriptName.trie.txt");
+		}
+
 		std::lock_guard lg(m_accessLock);
 		m_dbs = std::move(dbs);
 		m_win32FamilyName = std::move(win32FamilyName);
