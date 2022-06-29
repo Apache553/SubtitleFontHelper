@@ -234,7 +234,7 @@ namespace
 					// first reach
 					for (size_t i = 0; i < top.node->m_data.size(); ++i)
 					{
-						wchar_t head = (i == top.node->m_data.size() - 1 && top.node->m_branch.empty()) ? L'©¸' : L'©À';
+						wchar_t head = (i == top.node->m_data.size() - 1 && top.node->m_branch.empty()) ? L'â””' : L'â”œ';
 						stream << prefix << head << L" [" << top.node->m_data[i]->m_path << L"]\n";
 					}
 				}
@@ -244,12 +244,12 @@ namespace
 					prefix.resize(prefix.size() >= 5 ? prefix.size() - 5 : 0);
 					continue;
 				}
-				wchar_t head = top.nextArc == top.node->m_branch.size() - 1 ? L'©¸' : L'©À';
-				stream << prefix << head << L"©¤©¤ \"" << top.node->m_branch[top.nextArc].first << L"\"\n";
-				if (head == L'©¸')
+				wchar_t head = top.nextArc == top.node->m_branch.size() - 1 ? L'â””' : L'â”œ';
+				stream << prefix << head << L"â”€â”€ \"" << top.node->m_branch[top.nextArc].first << L"\"\n";
+				if (head == L'â””')
 					prefix += L"     ";
 				else
-					prefix += L"©¦    ";
+					prefix += L"â”‚    ";
 				auto child = top.node->m_branch[top.nextArc].second.get();
 				++top.nextArc;
 				if (child)
