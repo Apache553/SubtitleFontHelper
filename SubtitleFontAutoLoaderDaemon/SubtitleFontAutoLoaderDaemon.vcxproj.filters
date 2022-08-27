@@ -51,6 +51,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="eventTEMP.BIN">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common.h">
@@ -99,6 +102,9 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="icon.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="icon-loading.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

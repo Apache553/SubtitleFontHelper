@@ -237,6 +237,7 @@
       <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </OutputItemType>
     </CustomBuild>
+    <None Include="eventTEMP.BIN" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -278,6 +279,7 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
+    <Image Include="icon-loading.ico" />
     <Image Include="icon.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

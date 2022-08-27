@@ -99,15 +99,16 @@ private:
 			m_iconData.hWnd = m_hWnd;
 			m_iconData.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
 			m_iconData.uCallbackMessage = WM_TRAY_ICON_MESSAGE;
-			m_iconData.hIcon = LoadIconW(wil::GetModuleInstanceHandle(), MAKEINTRESOURCEW(IDI_TRAYICON));
 		}
 		if (m_loading)
 		{
 			wcscpy_s(m_iconData.szTip, L"SubtitleFontAutoLoaderDaemon - Loading");
+			m_iconData.hIcon = LoadIconW(wil::GetModuleInstanceHandle(), MAKEINTRESOURCEW(IDI_TRAYICONLOADING));
 		}
 		else
 		{
 			wcscpy_s(m_iconData.szTip, L"SubtitleFontAutoLoaderDaemon");
+			m_iconData.hIcon = LoadIconW(wil::GetModuleInstanceHandle(), MAKEINTRESOURCEW(IDI_TRAYICON));
 		}
 		Shell_NotifyIconW(add ? NIM_ADD : NIM_MODIFY, &m_iconData);
 	}
