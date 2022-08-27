@@ -3,9 +3,13 @@
 #include "RpcServer.h"
 
 #define WIN32_LEAN_AND_MEAN
-#include <queue>
 #include <Windows.h>
 #include <wil/resource.h>
+
+#include <queue>
+#include <vector>
+#include <cstdint>
+#include <list>
 
 class sfh::RpcServer::Implementation
 {
@@ -18,42 +22,330 @@ private:
 	std::atomic<size_t> m_checkPoint;
 	wil::unique_event m_exitEvent;
 
+	std::vector<std::thread> m_workers;
 
-	void ProcessNewRequest(wil::unique_handle& pipe) noexcept
+	wil::unique_handle m_iocp;
+
+	struct ConnectionBlock;
+
+	typedef bool (Implementation::*IoCallback)(ConnectionBlock& connection, DWORD transferredBytes, DWORD error);
+
+	struct IOBlock
 	{
-		OVERLAPPED overlapped{};
-		ResetOverlapped(&overlapped);
-		try
-		{
-			AcceptRequest(pipe, &overlapped);
-		}
-		catch (...)
-		{
-			// ignore exceptions
-		}
-		FlushFileBuffers(pipe.get());
-		DisconnectNamedPipe(pipe.get());
+		uint8_t* m_buffer;
+		DWORD m_completedBytes;
+		DWORD m_totalBytes;
+		OVERLAPPED m_overlapped = {};
+
+		IoCallback m_completionCallback;
+	};
+
+	struct RawMessageBlock
+	{
+		uint32_t m_length;
+		std::vector<uint8_t> m_buffer;
+	};
+
+
+	struct ConnectionBlock
+	{
+		wil::unique_hfile m_pipe;
+		IOBlock m_io;
+		RawMessageBlock m_msg;
+		std::list<ConnectionBlock>::iterator m_iterator;
+	};
+
+	std::mutex m_connectionMutex;
+	std::list<ConnectionBlock> m_connections;
+
+
+	bool BeginReadLengthPrefix(ConnectionBlock& connection)
+	{
+		connection.m_io.m_buffer = reinterpret_cast<uint8_t*>(&connection.m_msg.m_length);
+		connection.m_io.m_totalBytes = sizeof(uint32_t);
+		connection.m_io.m_completedBytes = 0;
+		connection.m_io.m_completionCallback = &Implementation::EndReadLengthPrefix;
+
+		return DoRead(connection);
 	}
 
-	void DoWork(std::condition_variable& cv, std::mutex& lock, std::queue<wil::unique_handle>& pending, bool& stop)
+	bool EndReadLengthPrefix(ConnectionBlock& connection, DWORD transferredBytes, DWORD error)
 	{
-		std::unique_lock lg(lock);
-		while (!stop)
+		if (error != ERROR_SUCCESS)
+			return false;
+		connection.m_io.m_completedBytes += transferredBytes;
+		if (connection.m_io.m_completedBytes != connection.m_io.m_totalBytes)
+			return false;
+
+		return BeginReadMessage(connection);
+	}
+
+	bool BeginReadMessage(ConnectionBlock& connection)
+	{
+		// sanity check
+		if (connection.m_msg.m_length > 4 * 1024 * 1024)
+			return false;
+
+		connection.m_msg.m_buffer.resize(connection.m_msg.m_length);
+		connection.m_io.m_buffer = connection.m_msg.m_buffer.data();
+		connection.m_io.m_totalBytes = connection.m_msg.m_length;
+		connection.m_io.m_completedBytes = 0;
+		connection.m_io.m_completionCallback = &Implementation::EndReadMessage;
+
+		return DoRead(connection);
+	}
+
+	bool EndReadMessage(ConnectionBlock& connection, DWORD transferredBytes, DWORD error)
+	{
+		if (error != ERROR_SUCCESS)
+			return false;
+		connection.m_io.m_completedBytes += transferredBytes;
+		if (connection.m_io.m_completedBytes != connection.m_io.m_totalBytes)
+			return false;
+
+		return ProcessMessage(connection);
+	}
+
+	bool ProcessMessage(ConnectionBlock& connection)
+	{
+		FontQueryRequest request;
+		if (!request.ParseFromArray(connection.m_msg.m_buffer.data(), connection.m_msg.m_length))
+			return false;
+
+		if (request.version() != 1)
+			return false;
+
+		if (request.has_feedbackdata())
 		{
-			cv.wait(lg, [&]() { return !pending.empty() || stop; });
-			while (!pending.empty())
+			// handle feedback
+			return ProcessFeedback(connection, request);
+		}
+		else if (request.has_querystring())
+		{
+			// handle query
+			return ProcessRequest(connection, request);
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	bool BeginWriteLengthPrefix(ConnectionBlock& connection)
+	{
+		connection.m_io.m_buffer = reinterpret_cast<uint8_t*>(&connection.m_msg.m_length);
+		connection.m_io.m_totalBytes = sizeof(uint32_t);
+		connection.m_io.m_completedBytes = 0;
+		connection.m_io.m_completionCallback = &Implementation::EndWriteLengthPrefix;
+
+		return DoWrite(connection);
+	}
+
+	bool EndWriteLengthPrefix(ConnectionBlock& connection, DWORD transferredBytes, DWORD error)
+	{
+		if (error != ERROR_SUCCESS)
+			return false;
+		connection.m_io.m_completedBytes += transferredBytes;
+		if (connection.m_io.m_completedBytes != connection.m_io.m_totalBytes)
+			return false;
+
+		return BeginWriteMessage(connection);
+	}
+
+	bool BeginWriteMessage(ConnectionBlock& connection)
+	{
+		connection.m_io.m_buffer = connection.m_msg.m_buffer.data();
+		connection.m_io.m_totalBytes = connection.m_msg.m_length;
+		connection.m_io.m_completedBytes = 0;
+		connection.m_io.m_completionCallback = &Implementation::EndWriteMessage;
+
+		return DoWrite(connection);
+	}
+
+	bool EndWriteMessage(ConnectionBlock& connection, DWORD transferredBytes, DWORD error)
+	{
+		if (error != ERROR_SUCCESS)
+			return false;
+		connection.m_io.m_completedBytes += transferredBytes;
+		if (connection.m_io.m_completedBytes != connection.m_io.m_totalBytes)
+			return false;
+
+		return BeginReadLengthPrefix(connection);
+	}
+
+	bool BeginConnection(ConnectionBlock& connection)
+	{
+		return BeginReadLengthPrefix(connection);
+	}
+
+	template <typename IoFn>
+	bool DoIo(ConnectionBlock& connection, IoFn& IoFunction) noexcept
+	{
+		// return true indicates connection still can do something
+		memset(&connection.m_io.m_overlapped, 0, sizeof(OVERLAPPED));
+		BOOL result = IoFunction(connection.m_pipe.get(), connection.m_io.m_buffer, connection.m_io.m_totalBytes,
+		                         nullptr, &connection.m_io.m_overlapped);
+
+		if (result != FALSE || GetLastError() == ERROR_IO_PENDING)
+		{
+			return true;
+		}
+		return (this->*connection.m_io.m_completionCallback)(connection, 0, GetLastError());
+	}
+
+	bool DoRead(ConnectionBlock& connection)
+	{
+		return DoIo(connection, ReadFile);
+	}
+
+	bool DoWrite(ConnectionBlock& connection)
+	{
+		return DoIo(connection, WriteFile);
+	}
+
+	void ListenProcedure()
+	{
+		wil::unique_event connectedEvent;
+		connectedEvent.create(wil::EventOptions::ManualReset);
+
+		HANDLE waitList[] = {m_exitEvent.get(), connectedEvent.get()};
+
+		while (true)
+		{
+			OVERLAPPED connectOverlapped = {};
+			connectedEvent.ResetEvent();
+			connectOverlapped.hEvent = connectedEvent.get();
+			auto listenPipe = CreateNewNamedPipe();
+
+			++m_checkPoint;
+
+			bool connected = ConnectNamedPipe(listenPipe.get(), &connectOverlapped)
+				                 ? true
+				                 : GetLastError() == ERROR_PIPE_CONNECTED;
+			if (!connected)
 			{
-				auto conn = std::move(pending.front());
-				pending.pop();
-				lg.unlock();
+				if (GetLastError() == ERROR_IO_PENDING)
+				{
+					DWORD result = WaitForMultipleObjects(std::extent_v<decltype(waitList)>, waitList, FALSE, INFINITE);
+					if (result == WAIT_OBJECT_0 + 1)
+					{
+						// connected
+					}
+					else if (result == WAIT_OBJECT_0)
+					{
+						// exiting
+						break;
+					}
+					else
+					{
+						// generic failure
+						continue;
+					}
+				}
+				else
+				{
+					// generic failure
+					continue;
+				}
+			}
+			else
+			{
+				if (m_exitEvent.is_signaled())
+					break;
+			}
 
-				ProcessNewRequest(conn);
+			// bind iocp
+			std::lock_guard lg(m_connectionMutex);
+			auto& connection = m_connections.emplace_front();
+			connection.m_iterator = m_connections.begin();
+			connection.m_pipe = std::move(listenPipe);
+			if (CreateIoCompletionPort(connection.m_pipe.get(), m_iocp.get(),
+			                           reinterpret_cast<ULONG_PTR>(&m_connections.front()), 0) == nullptr)
+			{
+				// bind failure
+				continue;
+			}
 
-				lg.lock();
+			if (!BeginConnection(m_connections.front()))
+			{
+				m_connections.pop_front();
 			}
 		}
 	}
 
+	void IocpRoutine()
+	{
+		DWORD transferredBytes;
+		ULONG_PTR completionKey;
+		OVERLAPPED* overlapped;
+		DWORD lastError = ERROR_SUCCESS;
+		while (true)
+		{
+			BOOL status = GetQueuedCompletionStatus(m_iocp.get(), &transferredBytes, &completionKey, &overlapped,
+			                                        INFINITE);
+			if (status == FALSE)
+			{
+				if (overlapped == nullptr)
+				{
+					// get completion packet failure
+					THROW_LAST_ERROR_MSG("Failed to get queued completion packet!");
+				}
+				else
+				{
+					// io failure
+					lastError = GetLastError();
+				}
+			}
+			else
+			{
+				lastError = ERROR_SUCCESS;
+			}
+
+			if (overlapped == nullptr)
+			{
+				// control message
+				if (completionKey == 0)
+				{
+					// stop thread
+					break;
+				}
+				continue;
+			}
+
+			auto& connection = *reinterpret_cast<ConnectionBlock*>(completionKey);
+			if (!(this->*connection.m_io.m_completionCallback)(connection, transferredBytes, lastError))
+			{
+				// destroy connection
+				std::lock_guard lg(m_connectionMutex);
+				m_connections.erase(connection.m_iterator);
+			}
+		}
+	}
+
+	template <typename T>
+	static void EncodeMessage(ConnectionBlock& connection, const T& message)
+	{
+		std::ostringstream oss;
+		message.SerializeToOstream(&oss);
+		std::string buffer = std::move(oss).str();
+
+		connection.m_msg.m_length = static_cast<uint32_t>(buffer.size());
+		connection.m_msg.m_buffer.resize(buffer.size());
+		memcpy(connection.m_msg.m_buffer.data(), buffer.data(), buffer.size());
+	}
+
+	bool ProcessRequest(ConnectionBlock& connection, const FontQueryRequest& request)
+	{
+		auto response = m_requestHandler->HandleRequest(request);
+		EncodeMessage(connection, response);
+		return BeginWriteLengthPrefix(connection);
+	}
+
+	bool ProcessFeedback(ConnectionBlock& connection, const FontQueryRequest& request)
+	{
+		m_feedbackHandler->HandleFeedback(request);
+		return BeginReadLengthPrefix(connection);
+	}
 
 public:
 	static constexpr size_t WORKER_COUNT = 4;
@@ -62,86 +354,48 @@ public:
 		: m_daemon(daemon), m_requestHandler(requestHandler), m_feedbackHandler(feedbackHandler), m_checkPoint(0)
 	{
 		m_exitEvent.create(wil::EventOptions::ManualReset);
-		m_listener = std::thread([&]()
+		m_iocp.reset(CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 0));
+		if (!m_iocp.is_valid())
+		{
+			THROW_LAST_ERROR_MSG("Failed to create rpc I/O completion port");
+		}
+
+		// do start listening here
+
+		SYSTEM_INFO info;
+		GetSystemInfo(&info);
+		int workerCount = info.dwNumberOfProcessors;
+		if (workerCount > 8)
+			workerCount = 8;
+
+		m_workers.reserve(workerCount);
+		for (size_t i = 0; i < workerCount; ++i)
+		{
+			m_workers.emplace_back([this]()
+			{
+				try
+				{
+					IocpRoutine();
+				}
+				catch (...)
+				{
+					m_daemon->NotifyException(std::current_exception());
+				}
+			});
+		}
+
+		m_listener = std::thread([this]()
 		{
 			try
 			{
-				std::condition_variable workerCV;
-				std::mutex workerMutex;
-				std::queue<wil::unique_handle> workerQueue;
-				bool stop = false;
-				std::vector<std::thread> workers;
-
-
-				workers.reserve(WORKER_COUNT);
-				for (size_t i = 0; i < WORKER_COUNT; ++i)
-				{
-					workers.emplace_back([&]()
-					{
-						DoWork(workerCV, workerMutex, workerQueue, stop);
-					});
-				}
-
-				wil::unique_event connectedEvent;
-				connectedEvent.create(wil::EventOptions::ManualReset);
-				HANDLE waitList[2] = {
-					connectedEvent.get(),
-					m_exitEvent.get()
-				};
-
-				OVERLAPPED overlapped;
-				overlapped.hEvent = connectedEvent.get();
-
-				while (!m_exitEvent.is_signaled())
-				{
-					auto pipe = CreateNewNamedPipe();
-					++m_checkPoint;
-					ResetOverlapped(&overlapped);
-					ConnectNamedPipe(pipe.get(), &overlapped);
-					THROW_LAST_ERROR_IF(GetLastError() != ERROR_IO_PENDING && GetLastError() != ERROR_PIPE_CONNECTED);
-					if (GetLastError() == ERROR_PIPE_CONNECTED)
-						connectedEvent.SetEvent();
-					auto waitResult = WaitForMultipleObjects(
-						std::extent_v<decltype(waitList)>,
-						waitList,
-						FALSE,
-						INFINITE);
-					if (waitResult == WAIT_OBJECT_0)
-					{
-						// connected
-						std::lock_guard lg(workerMutex);
-						workerQueue.push(std::move(pipe));
-						workerCV.notify_one();
-					}
-					else if (waitResult == WAIT_OBJECT_0 + 1)
-					{
-						// exit
-						std::unique_lock lg(workerMutex);
-						stop = true;
-						workerCV.notify_all();
-						lg.unlock();
-						for (auto& worker : workers)
-						{
-							worker.join();
-						}
-						break;
-					}
-					else if (waitResult == WAIT_FAILED)
-					{
-						THROW_LAST_ERROR();
-					}
-					else
-					{
-						MarkUnreachable();
-					}
-				}
+				ListenProcedure();
 			}
 			catch (...)
 			{
-				++m_checkPoint;
 				m_daemon->NotifyException(std::current_exception());
 			}
 		});
+
 		while (m_checkPoint.load() == 0)
 			std::this_thread::yield();
 	}
@@ -149,18 +403,34 @@ public:
 	~Implementation()
 	{
 		m_exitEvent.SetEvent();
+		{
+			std::lock_guard lg(m_connectionMutex);
+			for (auto& connection : m_connections)
+			{
+				CancelIoEx(connection.m_pipe.get(), nullptr);
+			}
+		}
+		for (size_t i = 0; i < m_workers.size(); ++i)
+		{
+			PostQueuedCompletionStatus(m_iocp.get(), 0, 0, nullptr);
+		}
+		for (auto& worker : m_workers)
+		{
+			if (worker.joinable())
+				worker.join();
+		}
 		if (m_listener.joinable())
 			m_listener.join();
 	}
 
 private:
-	static wil::unique_handle CreateNewNamedPipe()
+	static wil::unique_hfile CreateNewNamedPipe()
 	{
 		// generate pipe name
 		std::wstring pipeName = LR"_(\\.\pipe\SubtitleFontAutoLoaderRpc-)_";
 		pipeName += GetCurrentProcessUserSid();
 
-		wil::unique_handle pipe;
+		wil::unique_hfile pipe;
 		*pipe.put() = CreateNamedPipeW(
 			pipeName.c_str(),
 			PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
@@ -171,81 +441,9 @@ private:
 			0,
 			nullptr
 		);
-		THROW_LAST_ERROR_IF_NULL(pipe.get());
+		if (!pipe.is_valid())
+			THROW_LAST_ERROR_MSG("Failed to listen named pipe!");
 		return pipe;
-	}
-
-	void HandleQuery(wil::unique_handle& pipe, OVERLAPPED* overlapped, FontQueryRequest& request)
-	{
-		auto response = m_requestHandler->HandleRequest(request);
-
-		std::ostringstream oss;
-		response.SerializeToOstream(&oss);
-		std::string buffer = std::move(oss).str();
-		auto responseLength = static_cast<uint32_t>(buffer.size());
-		WritePipe(pipe.get(), &responseLength, sizeof(uint32_t), overlapped);
-		WritePipe(pipe.get(), buffer.data(), static_cast<DWORD>(responseLength), overlapped);
-	}
-
-	void HandleFeedback(wil::unique_handle& pipe, OVERLAPPED* overlapped, FontQueryRequest& request)
-	{
-		m_feedbackHandler->HandleFeedback(request);
-	}
-
-	void AcceptRequest(wil::unique_handle& pipe, OVERLAPPED* overlapped)
-	{
-		uint32_t requestLength;
-		ReadPipe(pipe.get(), &requestLength, sizeof(uint32_t), overlapped);
-		std::vector<char> requestBuffer(requestLength);
-		ReadPipe(pipe.get(), requestBuffer.data(), requestLength, overlapped);
-
-		FontQueryRequest request;
-		if (!request.ParseFromArray(requestBuffer.data(), requestLength))
-			return;
-
-		if (request.version() != 1)
-			return;
-
-		if (request.has_querystring())
-		{
-			HandleQuery(pipe, overlapped, request);
-		}
-		else if (request.has_feedbackdata())
-		{
-			HandleFeedback(pipe, overlapped, request);
-		}
-	}
-
-
-	static void ReadPipe(HANDLE pipe, void* dst, DWORD size, OVERLAPPED* overlapped)
-	{
-		DWORD readCount;
-		ResetOverlapped(overlapped);
-		THROW_LAST_ERROR_IF(
-			ReadFile(pipe, dst, size, nullptr, overlapped) == FALSE && GetLastError() != ERROR_IO_PENDING);
-		THROW_LAST_ERROR_IF(GetOverlappedResult(pipe, overlapped, &readCount, TRUE) == FALSE);
-		if (readCount != size)throw std::runtime_error("not enough data");
-	}
-
-	static void WritePipe(HANDLE pipe, const void* src, DWORD size, OVERLAPPED* overlapped)
-	{
-		DWORD writeCount;
-		ResetOverlapped(overlapped);
-		THROW_LAST_ERROR_IF(
-			WriteFile(pipe, src, size, nullptr, overlapped) == FALSE && GetLastError() != ERROR_IO_PENDING);
-		THROW_LAST_ERROR_IF(GetOverlappedResult(pipe, overlapped, &writeCount, TRUE) == FALSE);
-		if (writeCount != size)throw std::runtime_error("can't write much data");
-	}
-
-	static void ResetOverlapped(OVERLAPPED* overlapped)
-	{
-		HANDLE hEvent = overlapped->hEvent;
-		memset(overlapped, 0, sizeof(OVERLAPPED));
-		if (hEvent != nullptr)
-		{
-			overlapped->hEvent = hEvent;
-			ResetEvent(hEvent);
-		}
 	}
 };
 

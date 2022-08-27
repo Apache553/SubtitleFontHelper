@@ -249,6 +249,48 @@ namespace sfh
 		return pipe;
 	}
 
+	class PipeClientPool
+	{
+	private:
+		std::vector<wil::unique_hfile> m_pool;
+		std::mutex m_mutex;
+
+		PipeClientPool()
+		{
+		}
+
+	public:
+		static PipeClientPool& GetInstance()
+		{
+			static PipeClientPool instance;
+			return instance;
+		}
+
+		wil::unique_hfile GetOne()
+		{
+			std::lock_guard lg(m_mutex);
+			if (m_pool.empty())
+			{
+				m_pool.emplace_back(OpenPipe());
+			}
+			auto ret = std::move(m_pool.back());
+			m_pool.pop_back();
+			return ret;
+		}
+
+		void PutOne(wil::unique_hfile&& pipe)
+		{
+			std::lock_guard lg(m_mutex);
+			m_pool.emplace_back(std::move(pipe));
+		}
+
+		void Invalidate()
+		{
+			std::lock_guard lg(m_mutex);
+			m_pool.clear();
+		}
+	};
+
 	void SendRequst(wil::unique_hfile& pipe, const FontQueryRequest& request)
 	{
 		std::ostringstream oss;
@@ -282,13 +324,28 @@ namespace sfh
 	template <typename ReturnType>
 	ReturnType MakeRequest(const FontQueryRequest& request)
 	{
-		auto pipe = OpenPipe();
+		bool shouldPut = true;
+		auto pipe = PipeClientPool::GetInstance().GetOne();
+		auto _ = wil::scope_exit([&]()
+		{
+			if (shouldPut)
+				PipeClientPool::GetInstance().PutOne(std::move(pipe));
+		});
 
-		// send
-		SendRequst(pipe, request);
+		try
+		{
+			// send
+			SendRequst(pipe, request);
 
-		// recv
-		return FetchResponse<ReturnType>(pipe);
+			// recv
+			return FetchResponse<ReturnType>(pipe);
+		}
+		catch (...)
+		{
+			shouldPut = false;
+			PipeClientPool::GetInstance().Invalidate();
+			throw;
+		}
 	}
 
 	FontQueryResponse QueryFont(const wchar_t* str)
