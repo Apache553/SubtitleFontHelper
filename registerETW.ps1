@@ -1,7 +1,7 @@
 $scriptpath = $MyInvocation.MyCommand.Path
 $scriptdir = Split-Path $scriptpath
 $etwman = Join-Path $scriptdir "event.man"
-$exepath = Join-Path $scriptdir "SubtitleFontAutoLoaderDaemon.exe"
+$exepath = Join-Path $scriptdir "Generated64.dll"
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){

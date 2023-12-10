@@ -23,36 +23,36 @@ namespace sfh
 
 		namespace Original
 		{
-			HFONT (WINAPI* CreateFontA)(_In_ int cHeight, _In_ int cWidth, _In_ int cEscapement,
-			                            _In_ int cOrientation,
-			                            _In_ int cWeight, _In_ DWORD bItalic,
-			                            _In_ DWORD bUnderline, _In_ DWORD bStrikeOut, _In_ DWORD iCharSet,
-			                            _In_ DWORD iOutPrecision, _In_ DWORD iClipPrecision,
-			                            _In_ DWORD iQuality, _In_ DWORD iPitchAndFamily,
-			                            _In_opt_ LPCSTR pszFaceName);
-			HFONT (WINAPI* CreateFontW)(_In_ int cHeight, _In_ int cWidth, _In_ int cEscapement,
-			                            _In_ int cOrientation,
-			                            _In_ int cWeight, _In_ DWORD bItalic,
-			                            _In_ DWORD bUnderline, _In_ DWORD bStrikeOut, _In_ DWORD iCharSet,
-			                            _In_ DWORD iOutPrecision, _In_ DWORD iClipPrecision,
-			                            _In_ DWORD iQuality, _In_ DWORD iPitchAndFamily,
-			                            _In_opt_ LPCWSTR pszFaceName);
+			HFONT(WINAPI* CreateFontA)(_In_ int cHeight, _In_ int cWidth, _In_ int cEscapement,
+				_In_ int cOrientation,
+				_In_ int cWeight, _In_ DWORD bItalic,
+				_In_ DWORD bUnderline, _In_ DWORD bStrikeOut, _In_ DWORD iCharSet,
+				_In_ DWORD iOutPrecision, _In_ DWORD iClipPrecision,
+				_In_ DWORD iQuality, _In_ DWORD iPitchAndFamily,
+				_In_opt_ LPCSTR pszFaceName);
+			HFONT(WINAPI* CreateFontW)(_In_ int cHeight, _In_ int cWidth, _In_ int cEscapement,
+				_In_ int cOrientation,
+				_In_ int cWeight, _In_ DWORD bItalic,
+				_In_ DWORD bUnderline, _In_ DWORD bStrikeOut, _In_ DWORD iCharSet,
+				_In_ DWORD iOutPrecision, _In_ DWORD iClipPrecision,
+				_In_ DWORD iQuality, _In_ DWORD iPitchAndFamily,
+				_In_opt_ LPCWSTR pszFaceName);
 
-			HFONT (WINAPI* CreateFontIndirectA)(_In_ CONST LOGFONTA* lplf);
-			HFONT (WINAPI* CreateFontIndirectW)(_In_ CONST LOGFONTW* lplf);
+			HFONT(WINAPI* CreateFontIndirectA)(_In_ CONST LOGFONTA* lplf);
+			HFONT(WINAPI* CreateFontIndirectW)(_In_ CONST LOGFONTW* lplf);
 
-			HFONT (WINAPI* CreateFontIndirectExA)(_In_ CONST ENUMLOGFONTEXDVA*);
-			HFONT (WINAPI* CreateFontIndirectExW)(_In_ CONST ENUMLOGFONTEXDVW*);
+			HFONT(WINAPI* CreateFontIndirectExA)(_In_ CONST ENUMLOGFONTEXDVA*);
+			HFONT(WINAPI* CreateFontIndirectExW)(_In_ CONST ENUMLOGFONTEXDVW*);
 
 			int (WINAPI* EnumFontFamiliesA)(_In_ HDC hdc, _In_opt_ LPCSTR lpLogfont, _In_ FONTENUMPROCA lpProc,
-			                                _In_ LPARAM lParam);
+				_In_ LPARAM lParam);
 			int (WINAPI* EnumFontFamiliesW)(_In_ HDC hdc, _In_opt_ LPCWSTR lpLogfont, _In_ FONTENUMPROCW lpProc,
-			                                _In_ LPARAM lParam);
+				_In_ LPARAM lParam);
 
 			int (WINAPI* EnumFontFamiliesExA)(_In_ HDC hdc, _In_ LPLOGFONTA lpLogfont, _In_ FONTENUMPROCA lpProc,
-			                                  _In_ LPARAM lParam, _In_ DWORD dwFlags);
+				_In_ LPARAM lParam, _In_ DWORD dwFlags);
 			int (WINAPI* EnumFontFamiliesExW)(_In_ HDC hdc, _In_ LPLOGFONTW lpLogfont, _In_ FONTENUMPROCW lpProc,
-			                                  _In_ LPARAM lParam, _In_ DWORD dwFlags);
+				_In_ LPARAM lParam, _In_ DWORD dwFlags);
 		}
 
 		void LoadFunctionPointers()
@@ -100,7 +100,7 @@ namespace
 			do
 			{
 				if (threadEntry.dwSize >= FIELD_OFFSET(THREADENTRY32, th32OwnerProcessID) + sizeof(threadEntry.
-						th32OwnerProcessID)
+					th32OwnerProcessID)
 					&& threadEntry.th32OwnerProcessID == processId
 					&& threadEntry.th32ThreadID != currentThreadId)
 				{
@@ -114,8 +114,7 @@ namespace
 						threadHandles.emplace_back(std::move(hThread));
 				}
 				threadEntry.dwSize = sizeof(threadEntry);
-			}
-			while (Thread32Next(snapshot.get(), &threadEntry));
+			} while (Thread32Next(snapshot.get(), &threadEntry));
 		}
 		else
 		{
@@ -128,10 +127,10 @@ namespace
 	void DetourAttachHelper(Original& ppPointer, Detour& pDetour)
 	{
 		if (::DetourAttach(reinterpret_cast<void**>(&ppPointer),
-		                   reinterpret_cast<void*>(pDetour)) == NO_ERROR)
+			reinterpret_cast<void*>(pDetour)) == NO_ERROR)
 		{
 			sfh::Detour::g_detouredFunctions.emplace_back(reinterpret_cast<void**>(&ppPointer),
-			                                              reinterpret_cast<void*>(pDetour));
+				reinterpret_cast<void*>(pDetour));
 		}
 	}
 }

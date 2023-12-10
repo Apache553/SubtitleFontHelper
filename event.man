@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 
 <instrumentationManifest xsi:schemaLocation="http://schemas.microsoft.com/win/2004/08/events eventman.xsd"
                          xmlns="http://schemas.microsoft.com/win/2004/08/events"
@@ -34,6 +34,8 @@
           <event symbol="DllLoadFont" value="9" version="0" channel="SubtitleFontHelper"
                  level="win:Informational" template="DllLoadFontTemplate"
                  message="$(string.SubtitleFontHelper.event.DllLoadFont)" />
+          <event symbol="DebugLog" value="10" version="0" channel="SubtitleFontHelper"
+                 level="win:Verbose" template="LogTemplate" />
         </events>
         <channels>
           <channel
@@ -83,6 +85,9 @@
             <data name="processId" inType="win:UInt32" outType="win:PID" />
             <data name="threadId" inType="win:UInt32" outType="win:TID" />
             <data name="path" inType="win:UnicodeString" outType="xs:string" />
+          </template>
+          <template tid="LogTemplate">
+            <data name="message" inType="win:UnicodeString" outType="xs:string" />
           </template>
         </templates>
       </provider>

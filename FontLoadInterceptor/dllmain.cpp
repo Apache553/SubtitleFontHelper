@@ -8,13 +8,46 @@
 
 #include <wil/win32_helpers.h>
 
+#include <delayimp.h>
+#include <filesystem>
+
 DWORD WINAPI DelayedAttach(LPVOID lpThreadParameter);
 
 DWORD attachThreadId = 0;
 
+HMODULE LoadDll(const char* name)
+{
+	HMODULE thisDll = NULL;
+	if (GetModuleHandleExW(
+		GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		reinterpret_cast<LPCWSTR>(&LoadDll),
+		&thisDll) == 0) {
+		return NULL;
+	}
+	auto path = wil::GetModuleFileNameW<wil::unique_hlocal_string>(thisDll);
+	auto dir = std::filesystem::path(path.get()).parent_path();
+	auto newpath = dir / name;
+	return LoadLibraryW(newpath.wstring().c_str());
+}
+
+FARPROC WINAPI DelayLoadHook(unsigned dliNotify, PDelayLoadInfo pdli)
+{
+	//if the failure was failure to load the designated dll
+	if (dliNotify == dliFailLoadLib && pdli->dwLastError == ERROR_MOD_NOT_FOUND)
+	{
+		//return the successfully loaded back-up lib,
+		//or 0, the LoadLibrary fails here
+		HMODULE lib = LoadDll(pdli->szDll);
+		return (FARPROC)lib;
+	}
+	return 0;
+}
+
+ExternC const PfnDliHook __pfnDliFailureHook2 = DelayLoadHook;
+
 BOOL APIENTRY DllMain(HMODULE hModule,
-                      DWORD ul_reason_for_call,
-                      LPVOID lpReserved
+	DWORD ul_reason_for_call,
+	LPVOID lpReserved
 )
 {
 	try
@@ -113,65 +146,65 @@ extern "C" {
 #else
 #pragma comment(linker, "/export:InjectProcess=_InjectProcess@16")
 #endif
-void CALLBACK InjectProcess(HWND hWnd, HINSTANCE hInst, LPSTR lpszCmdLine, int nCmdShow)
-{
-	_configthreadlocale(_ENABLE_PER_THREAD_LOCALE);
-	setlocale(LC_ALL, "");
-	DWORD processId = 0;
-	try
+	void CALLBACK InjectProcess(HWND hWnd, HINSTANCE hInst, LPSTR lpszCmdLine, int nCmdShow)
 	{
-		processId = std::stoul(lpszCmdLine);
+		_configthreadlocale(_ENABLE_PER_THREAD_LOCALE);
+		setlocale(LC_ALL, "");
+		DWORD processId = 0;
+		try
+		{
+			processId = std::stoul(lpszCmdLine);
 
-		wil::unique_handle hProcess(OpenProcess(
-			PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
-			FALSE,
-			processId));
-		THROW_LAST_ERROR_IF(!hProcess.is_valid());
+			wil::unique_handle hProcess(OpenProcess(
+				PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ,
+				FALSE,
+				processId));
+			THROW_LAST_ERROR_IF(!hProcess.is_valid());
 
-		auto selfPath = GetDllSelfPath();
-		size_t bufferSize = (wcslen(selfPath.get()) + 1) * sizeof(wchar_t);
+			auto selfPath = GetDllSelfPath();
+			size_t bufferSize = (wcslen(selfPath.get()) + 1) * sizeof(wchar_t);
 
-		LPVOID remoteBuf = VirtualAllocEx(
-			hProcess.get(),
-			nullptr,
-			bufferSize,
-			MEM_COMMIT,
-			PAGE_READWRITE);
-		THROW_LAST_ERROR_IF(!remoteBuf);
+			LPVOID remoteBuf = VirtualAllocEx(
+				hProcess.get(),
+				nullptr,
+				bufferSize,
+				MEM_COMMIT,
+				PAGE_READWRITE);
+			THROW_LAST_ERROR_IF(!remoteBuf);
 
-		WriteProcessMemory(
-			hProcess.get(),
-			remoteBuf, selfPath.get(),
-			bufferSize,
-			nullptr);
+			WriteProcessMemory(
+				hProcess.get(),
+				remoteBuf, selfPath.get(),
+				bufferSize,
+				nullptr);
 
-		HMODULE hModuleKernel32 = nullptr;
-		THROW_LAST_ERROR_IF(
-			GetModuleHandleExW(
-				GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-				L"kernel32.dll",
-				&hModuleKernel32) == FALSE);
-		auto threadProc = reinterpret_cast<LPTHREAD_START_ROUTINE>(
-			GetProcAddress(hModuleKernel32, "LoadLibraryW"));
+			HMODULE hModuleKernel32 = nullptr;
+			THROW_LAST_ERROR_IF(
+				GetModuleHandleExW(
+					GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+					L"kernel32.dll",
+					&hModuleKernel32) == FALSE);
+			auto threadProc = reinterpret_cast<LPTHREAD_START_ROUTINE>(
+				GetProcAddress(hModuleKernel32, "LoadLibraryW"));
 
-		wil::unique_handle hThread(CreateRemoteThread(
-			hProcess.get(),
-			nullptr,
-			0,
-			threadProc,
-			remoteBuf,
-			0,
-			nullptr));
-		THROW_LAST_ERROR_IF(!hThread.is_valid());
+			wil::unique_handle hThread(CreateRemoteThread(
+				hProcess.get(),
+				nullptr,
+				0,
+				threadProc,
+				remoteBuf,
+				0,
+				nullptr));
+			THROW_LAST_ERROR_IF(!hThread.is_valid());
 
-		WaitForSingleObject(hThread.get(), INFINITE);
-		// VirtualFreeEx(hProcess.get(), remoteBuf, 0, MEM_RELEASE);
-		sfh::EventLog::GetInstance().LogDllInjectProcessSuccess(processId);
+			WaitForSingleObject(hThread.get(), INFINITE);
+			// VirtualFreeEx(hProcess.get(), remoteBuf, 0, MEM_RELEASE);
+			sfh::EventLog::GetInstance().LogDllInjectProcessSuccess(processId);
+		}
+		catch (std::exception& e)
+		{
+			sfh::EventLog::GetInstance().LogDllInjectProcessFailure(
+				processId, sfh::AnsiStringToWideString(e.what()).c_str());
+		}
 	}
-	catch (std::exception& e)
-	{
-		sfh::EventLog::GetInstance().LogDllInjectProcessFailure(
-			processId, sfh::AnsiStringToWideString(e.what()).c_str());
-	}
-}
 }

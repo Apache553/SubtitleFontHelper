@@ -13,7 +13,7 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// Ó¢Óï(ÃÀ¹ú) resources
+// è‹±è¯­(ç¾Žå›½) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
 LANGUAGE 4, 2
@@ -43,7 +43,7 @@ END
 
 #endif    // APSTUDIO_INVOKED
 
-#endif    // Ó¢Óï(ÃÀ¹ú) resources
+#endif    // è‹±è¯­(ç¾Žå›½) resources
 /////////////////////////////////////////////////////////////////////////////
 
 
@@ -57,5 +57,3 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-
-#include "event.rc"

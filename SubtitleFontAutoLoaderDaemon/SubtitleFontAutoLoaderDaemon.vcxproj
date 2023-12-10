@@ -32,26 +32,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -203,7 +203,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Common.cpp" />
-    <ClCompile Include="EventLog.cpp" />
     <ClCompile Include="FontQuery.pb.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="pch.cpp" />
@@ -237,12 +236,9 @@
       <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </OutputItemType>
     </CustomBuild>
-    <None Include="eventTEMP.BIN" />
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common.h" />
-    <ClInclude Include="EventLog.h" />
     <ClInclude Include="IDaemon.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Prefetch.h" />
@@ -256,27 +252,12 @@
     <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Generated\Generated.vcxproj">
+      <Project>{d6a10992-4ba7-4efe-89ae-7ca2734a1810}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\PersistantDataLib\PersistantDataLib.vcxproj">
       <Project>{fa23b3df-0dac-4203-93f3-f94a773607d5}</Project>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="..\event.man">
-      <FileType>XML</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">mc.exe -um %(Identity) -z %(Filename) -h $(IntDir)exres -rc $(IntDir)exres</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compile Message</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)exres\%(Filename).h</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">mc.exe -um %(Identity) -z %(Filename) -h $(IntDir)exres -rc $(IntDir)exres</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compile Message</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)exres\%(Filename).h</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">mc.exe -um %(Identity) -z %(Filename) -h $(IntDir)exres -rc $(IntDir)exres</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compile Message</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)exres\%(Filename).h</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">mc.exe -um %(Identity) -z %(Filename) -h $(IntDir)exres -rc $(IntDir)exres</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compile Message</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)exres\%(Filename).h</Outputs>
-      <DeploymentContent>true</DeploymentContent>
-    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Image Include="icon-loading.ico" />

@@ -31,26 +31,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -126,6 +126,8 @@
       <ModuleDefinitionFile>
       </ModuleDefinitionFile>
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
+      <DelayLoadDLLs>Generated32.dll</DelayLoadDLLs>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(IntDir)exres\</AdditionalIncludeDirectories>
@@ -153,6 +155,8 @@
       <EnableUAC>false</EnableUAC>
       <ModuleDefinitionFile>
       </ModuleDefinitionFile>
+      <DelayLoadDLLs>Generated32.dll</DelayLoadDLLs>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(IntDir)exres\</AdditionalIncludeDirectories>
@@ -177,6 +181,8 @@
       <ModuleDefinitionFile>
       </ModuleDefinitionFile>
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
+      <DelayLoadDLLs>Generated64.dll</DelayLoadDLLs>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(IntDir)exres\</AdditionalIncludeDirectories>
@@ -204,6 +210,8 @@
       <EnableUAC>false</EnableUAC>
       <ModuleDefinitionFile>
       </ModuleDefinitionFile>
+      <DelayLoadDLLs>Generated64.dll</DelayLoadDLLs>
+      <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(IntDir)exres\</AdditionalIncludeDirectories>
@@ -221,7 +229,6 @@
     <ClCompile Include="Detour.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="AttachDetour.cpp" />
-    <ClCompile Include="EventLog.cpp" />
     <ClCompile Include="FontQuery.pb.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -232,21 +239,6 @@
     <ClCompile Include="RpcClient.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\event.man">
-      <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">mc.exe -um %(Identity) -z %(Filename) -h $(IntDir)exres -rc $(IntDir)exres</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compile Message</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">mc.exe -um %(Identity) -z %(Filename) -h $(IntDir)exres -rc $(IntDir)exres</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compile Message</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">mc.exe -um %(Identity) -z %(Filename) -h $(IntDir)exres -rc $(IntDir)exres</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compile Message</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">mc.exe -um %(Identity) -z %(Filename) -h $(IntDir)exres -rc $(IntDir)exres</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compile Message</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)exres\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)exres\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)exres\%(Filename).h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)exres\%(Filename).h</Outputs>
-    </CustomBuild>
     <CustomBuild Include="..\SharedIncludes\FontQuery.proto">
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(VcpkgManifestRoot)\vcpkg_installed\$(VcpkgTriplet)\$(VcpkgTriplet)\tools\protobuf\protoc.exe -I=%(RelativeDir) --cpp_out=$(IntDir)proto %(Identity)</Command>
@@ -270,10 +262,14 @@
       <OutputItemType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </OutputItemType>
     </CustomBuild>
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Generated\Generated.vcxproj">
+      <Project>{d6a10992-4ba7-4efe-89ae-7ca2734a1810}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

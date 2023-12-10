@@ -53,15 +53,9 @@
     <ClCompile Include="RpcClient.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="EventLog.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="FontQuery.pb.cpp">
       <Filter>Proto</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
@@ -69,9 +63,6 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\event.man">
-      <Filter>Resource Files</Filter>
-    </CustomBuild>
     <CustomBuild Include="..\SharedIncludes\FontQuery.proto">
       <Filter>Proto</Filter>
     </CustomBuild>

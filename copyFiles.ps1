@@ -17,6 +17,8 @@ Copy-Item ../enableAutoStart.ps1 .
 Copy-Item ../disableAutoStart.ps1 .
 Copy-Item ../SubtitleFontHelper.example.xml .
 Copy-Item ../Build/Win32/$configuration/FontLoadInterceptor32.dll .
+Copy-Item ../Build/Win32/$configuration/Generated32.dll .
 Copy-Item ../Build/x64/$configuration/FontLoadInterceptor64.dll .
+Copy-Item ../Build/x64/$configuration/Generated64.dll .
 Copy-Item ../Build/x64/$configuration/FontDatabaseBuilder.exe .
 Copy-Item ../Build/x64/$configuration/SubtitleFontAutoLoaderDaemon.exe .

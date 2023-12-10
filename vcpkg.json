@@ -3,6 +3,8 @@
   "name": "subtitle-font-helper",
   "version": "1.0.0",
   "dependencies": [
-    "protobuf"
+    "protobuf",
+	"freetype",
+	"wil"
   ]
 }

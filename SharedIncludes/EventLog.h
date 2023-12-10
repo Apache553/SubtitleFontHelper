@@ -1,5 +1,7 @@
 #pragma once
 
+#include "CompileSpec.h"
+
 #include <string>
 #include <cstdint>
 #include <memory>
@@ -7,7 +9,7 @@
 
 namespace sfh
 {
-	class EventLog
+	class CLASS_DECLSPEC EventLog
 	{
 	private:
 		EventLog();
@@ -24,9 +26,9 @@ namespace sfh
 
 		void LogDllAttach(uint32_t processId);
 		void LogDllQuerySuccess(uint32_t processId, uint32_t threadId, const wchar_t* requestName,
-		                        const std::vector<const wchar_t*> responsePaths);
+			const std::vector<const wchar_t*> responsePaths);
 		void LogDllQueryFailure(uint32_t processId, uint32_t threadId, const wchar_t* requestName,
-		                        const wchar_t* reason);
+			const wchar_t* reason);
 
 		void LogDaemonTryAttach(uint32_t processId, const wchar_t* processName, const wchar_t* processArchitecture);
 		void LogDaemonBumpVersion(uint32_t oldVersion, uint32_t newVersion);
@@ -37,5 +39,9 @@ namespace sfh
 		void LogDllQueryNoResult(uint32_t processId, uint32_t threadId, const wchar_t* requestName);
 
 		void LogDllLoadFont(uint32_t processId, uint32_t threadId, const wchar_t* path);
+
+		void LogDebugMessageSingle(const wchar_t* str);
+		void LogDebugMessage(const char* fmt, ...);
+		void LogDebugMessage(const wchar_t* fmt, ...);
 	};
 }

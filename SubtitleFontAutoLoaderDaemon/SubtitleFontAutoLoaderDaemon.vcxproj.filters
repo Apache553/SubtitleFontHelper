@@ -36,9 +36,6 @@
     <ClCompile Include="RpcServer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="EventLog.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ProcessMonitor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -48,12 +45,6 @@
     <ClCompile Include="Prefetch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-    <None Include="eventTEMP.BIN">
-      <Filter>Resource Files</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common.h">
@@ -77,9 +68,6 @@
     <ClInclude Include="RpcServer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="EventLog.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ProcessMonitor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -93,9 +81,6 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\event.man">
-      <Filter>Resource Files</Filter>
-    </CustomBuild>
     <CustomBuild Include="..\SharedIncludes\FontQuery.proto">
       <Filter>Proto</Filter>
     </CustomBuild>

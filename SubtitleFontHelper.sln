@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.32002.261
+# Visual Studio Version 17
+VisualStudioVersion = 17.7.34009.444
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SubtitleFontAutoLoaderDaemon", "SubtitleFontAutoLoaderDaemon\SubtitleFontAutoLoaderDaemon.vcxproj", "{B4A7E053-C8D0-4D46-8350-C92511BEEF9E}"
 EndProject
@@ -13,13 +13,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SharedIncludes", "SharedInc
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FontLoadInterceptor", "FontLoadInterceptor\FontLoadInterceptor.vcxproj", "{C3CC2949-C24F-4217-A7A7-B2B0FAABAFA0}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Generated", "Generated\Generated.vcxproj", "{D6A10992-4BA7-4EFE-89AE-7CA2734A1810}"
+EndProject
 Global
-	GlobalSection(SharedMSBuildProjectFiles) = preSolution
-		SharedIncludes\SharedIncludes.vcxitems*{36b0a3ad-cdef-413c-9926-dbfefdd72d97}*SharedItemsImports = 4
-		SharedIncludes\SharedIncludes.vcxitems*{52e56318-5893-4435-a8e6-9df24010b6db}*SharedItemsImports = 9
-		SharedIncludes\SharedIncludes.vcxitems*{b4a7e053-c8d0-4d46-8350-c92511beef9e}*SharedItemsImports = 4
-		SharedIncludes\SharedIncludes.vcxitems*{fa23b3df-0dac-4203-93f3-f94a773607d5}*SharedItemsImports = 4
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
@@ -59,11 +55,26 @@ Global
 		{C3CC2949-C24F-4217-A7A7-B2B0FAABAFA0}.Release|x64.Build.0 = Release|x64
 		{C3CC2949-C24F-4217-A7A7-B2B0FAABAFA0}.Release|x86.ActiveCfg = Release|Win32
 		{C3CC2949-C24F-4217-A7A7-B2B0FAABAFA0}.Release|x86.Build.0 = Release|Win32
+		{D6A10992-4BA7-4EFE-89AE-7CA2734A1810}.Debug|x64.ActiveCfg = Debug|x64
+		{D6A10992-4BA7-4EFE-89AE-7CA2734A1810}.Debug|x64.Build.0 = Debug|x64
+		{D6A10992-4BA7-4EFE-89AE-7CA2734A1810}.Debug|x86.ActiveCfg = Debug|Win32
+		{D6A10992-4BA7-4EFE-89AE-7CA2734A1810}.Debug|x86.Build.0 = Debug|Win32
+		{D6A10992-4BA7-4EFE-89AE-7CA2734A1810}.Release|x64.ActiveCfg = Release|x64
+		{D6A10992-4BA7-4EFE-89AE-7CA2734A1810}.Release|x64.Build.0 = Release|x64
+		{D6A10992-4BA7-4EFE-89AE-7CA2734A1810}.Release|x86.ActiveCfg = Release|Win32
+		{D6A10992-4BA7-4EFE-89AE-7CA2734A1810}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {527BD5CE-6820-4CE0-8D18-F43802FE3485}
+	EndGlobalSection
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		SharedIncludes\SharedIncludes.vcxitems*{36b0a3ad-cdef-413c-9926-dbfefdd72d97}*SharedItemsImports = 4
+		SharedIncludes\SharedIncludes.vcxitems*{52e56318-5893-4435-a8e6-9df24010b6db}*SharedItemsImports = 9
+		SharedIncludes\SharedIncludes.vcxitems*{b4a7e053-c8d0-4d46-8350-c92511beef9e}*SharedItemsImports = 4
+		SharedIncludes\SharedIncludes.vcxitems*{d6a10992-4ba7-4efe-89ae-7ca2734a1810}*SharedItemsImports = 4
+		SharedIncludes\SharedIncludes.vcxitems*{fa23b3df-0dac-4203-93f3-f94a773607d5}*SharedItemsImports = 4
 	EndGlobalSection
 EndGlobal
