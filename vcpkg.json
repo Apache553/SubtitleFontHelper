@@ -5,6 +5,7 @@
   "dependencies": [
     "protobuf",
 	"freetype",
-	"wil"
+	"wil",
+	"detours"
   ]
 }
