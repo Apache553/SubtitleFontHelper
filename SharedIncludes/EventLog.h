@@ -45,3 +45,5 @@ namespace sfh
 		void LogDebugMessage(const wchar_t* fmt, ...);
 	};
 }
+
+#define LOGDEBUG(fmt, ...) sfh::EventLog::GetInstance().LogDebugMessage((fmt), __VA_ARGS__)

@@ -35,7 +35,7 @@
                  level="win:Informational" template="DllLoadFontTemplate"
                  message="$(string.SubtitleFontHelper.event.DllLoadFont)" />
           <event symbol="DebugLog" value="10" version="0" channel="SubtitleFontHelper"
-                 level="win:Verbose" template="LogTemplate" />
+                 level="win:Verbose" template="LogTemplate" message="$(string.SubtitleFontHelper.event.DebugLog)"/>
         </events>
         <channels>
           <channel
@@ -108,6 +108,7 @@
         <string id="SubtitleFontHelper.event.DllQueryNoResult"
                 value="Query succeeded. pid: %1, tid: %2 requestName: %3 No font available." />
         <string id="SubtitleFontHelper.event.DllLoadFont" value="pid: %1, tid: %2 load font file: %3" />
+        <string id="SubtitleFontHelper.event.DebugLog" value="%1" />
       </stringTable>
     </resources>
   </localization>

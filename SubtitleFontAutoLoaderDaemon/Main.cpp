@@ -19,7 +19,7 @@
 #include <shellapi.h>
 #include <wil/win32_helpers.h>
 
-#include "event.h"
+#include "EventLog.h"
 
 namespace sfh
 {
@@ -152,6 +152,8 @@ namespace sfh
 			selfPath.remove_filename();
 			auto configPath = selfPath / L"SubtitleFontHelper.xml";
 			auto lruCachePath = selfPath / L"lruCache.txt";
+			LOGDEBUG(L"config Path = %ls", configPath.c_str());
+			LOGDEBUG(L"lruCache Path = %ls", lruCachePath.c_str());
 			auto cfg = ConfigFile::ReadFromFile(configPath);
 
 			m_service->m_systemTray = std::make_unique<SystemTray>(this);
@@ -214,11 +216,18 @@ int __stdcall wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCm
 	setlocale(LC_ALL, "");
 	SetEnvironmentVariableW(L"__NO_DETOUR", L"TRUE");
 	auto cmdline = sfh::GetCommandLineVector(GetCommandLineW());
+	LOGDEBUG(L"Started with command line: %ls", GetCommandLineW());
 	sfh::ProcessCommandLine(cmdline);
 	try
 	{
 		sfh::SingleInstanceLock lock;
 		return sfh::Daemon().DaemonMain(cmdline);
+	}
+	catch (wil::ResultException& e)
+	{
+		wchar_t buffer[4096];
+		wil::GetFailureLogString(buffer, 4096, e.GetFailureInfo());
+		MessageBoxW(nullptr, buffer, L"Error", MB_OK | MB_ICONERROR);
 	}
 	catch (std::exception& e)
 	{
